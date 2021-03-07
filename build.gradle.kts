@@ -21,8 +21,6 @@ dependencies {
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.6.1")
 	testImplementation("org.awaitility:awaitility:4.0.1")
 
-	implementation(project(":module:com.sandpolis.core.instance"))
-
 	// https://github.com/netty/netty
 	api("io.netty:netty-common:4.1.56.Final")
 	api("io.netty:netty-codec:4.1.56.Final")
@@ -30,4 +28,10 @@ dependencies {
 	api("io.netty:netty-transport:4.1.56.Final")
 	api("io.netty:netty-handler:4.1.56.Final")
 	api("io.netty:netty-resolver-dns:4.1.56.Final")
+
+	if (project.getParent() == null) {
+		api("com.sandpolis:core.instance:0.1.0")
+	} else {
+		api(project(":module:com.sandpolis.core.instance"))
+	}
 }
