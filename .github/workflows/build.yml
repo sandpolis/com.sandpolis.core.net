@@ -1,0 +1,21 @@
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    steps:
+    - name: Setup Java
+      uses: actions/setup-java@v1
+      with:
+        java-version: 15
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        submodules: recursive
+    - name: Execute build
+      run: |
+        gradle --no-daemon build -x javadoc
