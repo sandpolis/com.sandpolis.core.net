@@ -24,7 +24,6 @@ import com.google.common.eventbus.Subscribe;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import com.google.common.graph.NetworkBuilder;
-import com.sandpolis.core.foundation.Config;
 import com.sandpolis.core.foundation.ConfigStruct;
 import com.sandpolis.core.instance.Core;
 import com.sandpolis.core.instance.Metatypes.InstanceType;
@@ -32,6 +31,7 @@ import com.sandpolis.core.instance.state.ConnectionOid;
 import com.sandpolis.core.instance.store.ConfigurableStore;
 import com.sandpolis.core.instance.store.StoreBase;
 import com.sandpolis.core.net.Message.MSG;
+import com.sandpolis.core.net.config.CfgNet;
 import com.sandpolis.core.net.connection.ConnectionEvents.SockEstablishedEvent;
 import com.sandpolis.core.net.connection.ConnectionEvents.SockLostEvent;
 import com.sandpolis.core.net.connection.ConnectionStore;
@@ -270,7 +270,7 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 			next = getPreferredServer().orElseThrow();
 		}
 
-		MessageFuture mf = receive(next, message.getId(), Config.MESSAGE_TIMEOUT.value().get(), TimeUnit.MILLISECONDS);
+		MessageFuture mf = receive(next, message.getId(), CfgNet.MESSAGE_TIMEOUT.value().get(), TimeUnit.MILLISECONDS);
 		ConnectionStore.getByCvid(next).get().send(message);
 		return mf;
 	}

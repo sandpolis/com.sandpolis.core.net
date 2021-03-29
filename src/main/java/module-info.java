@@ -8,6 +8,7 @@
 //                                                                            //
 //============================================================================//
 open module com.sandpolis.core.net {
+	exports com.sandpolis.core.net.config;
 	exports com.sandpolis.core.net.channel.client;
 	exports com.sandpolis.core.net.channel.peer;
 	exports com.sandpolis.core.net.channel;

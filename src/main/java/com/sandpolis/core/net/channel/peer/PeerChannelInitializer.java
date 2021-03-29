@@ -24,11 +24,11 @@ import static com.sandpolis.core.net.connection.ConnectionStore.ConnectionStore;
 
 import java.util.function.Consumer;
 
-import com.sandpolis.core.foundation.Config;
 import com.sandpolis.core.net.Message.MSG;
-import com.sandpolis.core.net.channel.ChannelStruct;
 import com.sandpolis.core.net.channel.ChannelConstant;
+import com.sandpolis.core.net.channel.ChannelStruct;
 import com.sandpolis.core.net.channel.HandlerKey;
+import com.sandpolis.core.net.config.CfgNet;
 import com.sandpolis.core.net.connection.Connection;
 import com.sandpolis.core.net.exelet.ExeletHandler;
 import com.sandpolis.core.net.handler.ManagementHandler;
@@ -80,12 +80,12 @@ public class PeerChannelInitializer extends ChannelInitializer<Channel> {
 		if (ch instanceof DatagramChannel)
 			p.addLast(HOLEPUNCH.next(p), new HolePunchHandler());
 
-		p.addLast(TRAFFIC.next(p), new ChannelTrafficShapingHandler(Config.TRAFFIC_INTERVAL.value().orElse(5000)));
+		p.addLast(TRAFFIC.next(p), new ChannelTrafficShapingHandler(CfgNet.TRAFFIC_INTERVAL.value().orElse(5000)));
 
 		p.addLast(ENCRYPTION_ENCODER.next(p), new PeerEncryptionEncoder());
 		p.addLast(ENCRYPTION_DECODER.next(p), new PeerEncryptionDecoder());
 
-		if (Config.TRAFFIC_RAW.value().orElse(false))
+		if (CfgNet.TRAFFIC_RAW.value().orElse(false))
 			p.addLast(LOG_RAW.next(p), new LoggingHandler(Connection.class));
 
 		p.addLast(FRAME_DECODER.next(p), new ProtobufVarint32FrameDecoder());
@@ -93,7 +93,7 @@ public class PeerChannelInitializer extends ChannelInitializer<Channel> {
 		p.addLast(FRAME_ENCODER.next(p), HANDLER_PROTO_FRAME_ENCODER);
 		p.addLast(PROTO_ENCODER.next(p), HANDLER_PROTO_ENCODER);
 
-		if (Config.TRAFFIC_DECODED.value().orElse(false))
+		if (CfgNet.TRAFFIC_DECODED.value().orElse(false))
 			p.addLast(LOG_DECODED.next(p), new LoggingHandler(Connection.class));
 
 		p.addLast(ThreadStore.get("net.exelet"), RESPONSE.next(p), new ResponseHandler());

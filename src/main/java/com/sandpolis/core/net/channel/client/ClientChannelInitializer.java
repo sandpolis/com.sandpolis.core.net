@@ -28,10 +28,10 @@ import java.util.function.Consumer;
 
 import javax.net.ssl.SSLException;
 
-import com.sandpolis.core.foundation.Config;
 import com.sandpolis.core.net.Message.MSG;
-import com.sandpolis.core.net.channel.ChannelStruct;
 import com.sandpolis.core.net.channel.ChannelConstant;
+import com.sandpolis.core.net.channel.ChannelStruct;
+import com.sandpolis.core.net.config.CfgNet;
 import com.sandpolis.core.net.connection.Connection;
 import com.sandpolis.core.net.cvid.CvidRequestHandler;
 import com.sandpolis.core.net.exelet.ExeletHandler;
@@ -87,12 +87,12 @@ public class ClientChannelInitializer extends ChannelInitializer<Channel> {
 
 		ChannelPipeline p = ch.pipeline();
 
-		p.addLast(TRAFFIC.next(p), new ChannelTrafficShapingHandler(Config.TRAFFIC_INTERVAL.value().orElse(5000)));
+		p.addLast(TRAFFIC.next(p), new ChannelTrafficShapingHandler(CfgNet.TRAFFIC_INTERVAL.value().orElse(5000)));
 
 		if (sslCtx != null)
 			p.addLast(TLS.next(p), sslCtx.newHandler(ch.alloc()));
 
-		if (Config.TRAFFIC_RAW.value().orElse(false))
+		if (CfgNet.TRAFFIC_RAW.value().orElse(false))
 			p.addLast(LOG_RAW.next(p), new LoggingHandler(Connection.class));
 
 		p.addLast(FRAME_DECODER.next(p), new ProtobufVarint32FrameDecoder());
@@ -100,7 +100,7 @@ public class ClientChannelInitializer extends ChannelInitializer<Channel> {
 		p.addLast(FRAME_ENCODER.next(p), HANDLER_PROTO_FRAME_ENCODER);
 		p.addLast(PROTO_ENCODER.next(p), HANDLER_PROTO_ENCODER);
 
-		if (Config.TRAFFIC_DECODED.value().orElse(false))
+		if (CfgNet.TRAFFIC_DECODED.value().orElse(false))
 			p.addLast(LOG_DECODED.next(p), new LoggingHandler(Connection.class));
 
 		p.addLast(CVID.next(p), HANDLER_CVID);
