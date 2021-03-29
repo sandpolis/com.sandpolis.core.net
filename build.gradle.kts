@@ -27,7 +27,7 @@ dependencies {
 	api("io.netty:netty-codec-dns:4.1.56.Final")
 	api("io.netty:netty-transport:4.1.56.Final")
 	api("io.netty:netty-handler:4.1.56.Final")
-	api("io.netty:netty-resolver-dns:4.1.56.Final")
+	api("io.netty:netty-resolver-dns:4.1.60.Final")
 
 	if (project.getParent() == null) {
 		api("com.sandpolis:core.instance:0.1.0")
