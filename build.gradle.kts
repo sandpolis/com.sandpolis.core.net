@@ -26,7 +26,7 @@ dependencies {
 	api("io.netty:netty-codec:4.1.60.Final")
 	api("io.netty:netty-codec-dns:4.1.60.Final")
 	api("io.netty:netty-transport:4.1.60.Final")
-	api("io.netty:netty-handler:4.1.60.Final")
+	api("io.netty:netty-handler:4.1.61.Final")
 	api("io.netty:netty-resolver-dns:4.1.60.Final")
 
 	if (project.getParent() == null) {
