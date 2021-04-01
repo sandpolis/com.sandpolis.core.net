@@ -84,19 +84,32 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 			network.nodes().stream().filter(cvid -> Core.cvid() != cvid).filter(cvid -> network.degree(cvid) == 0)
 					.collect(Collectors.toUnmodifiableList()).forEach(network::removeNode);
 
-			// See if that was the last connection to a server
-			if (connection.get(ConnectionOid.REMOTE_INSTANCE) == InstanceType.SERVER) {
-				// TODO
-				post(ServerLostEvent::new, connection.get(ConnectionOid.REMOTE_CVID));
+			// Check whether a server is still reachable after losing the connection
+			for (var node : network.nodes()) {
+				if (CvidUtil.extractInstance(node) == InstanceType.SERVER) {
+					if (network.edgesConnecting(node, connection.get(ConnectionOid.REMOTE_CVID)).size() > 0) {
+						return;
+					}
+				}
 			}
+
+			// No servers are reachable
+			post(ServerLostEvent::new, connection.get(ConnectionOid.REMOTE_CVID));
+
 		});
 	}
 
 	@Subscribe
 	private synchronized void onSockEstablished(SockEstablishedEvent event) {
 		event.ifPresent(connection -> {
-			network.addNode(connection.get(ConnectionOid.REMOTE_CVID));
-			// TODO add edge
+
+			// Add node if not already present
+			if (!network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID))) {
+				network.addNode(connection.get(ConnectionOid.REMOTE_CVID));
+			}
+
+			// Add edge representing the new connection
+			network.addEdge(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID), new NetworkConnection(null));
 
 			// See if that was the first connection to a server
 			if (connection.get(ConnectionOid.REMOTE_INSTANCE) == InstanceType.SERVER) {

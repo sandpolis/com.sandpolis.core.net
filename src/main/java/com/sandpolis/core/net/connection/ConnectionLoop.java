@@ -9,18 +9,19 @@
 //============================================================================//
 package com.sandpolis.core.net.connection;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.sandpolis.core.instance.thread.ThreadStore.ThreadStore;
 
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sandpolis.core.instance.Group.AgentConfig.LoopConfig;
-import com.sandpolis.core.instance.Group.AgentConfig.NetworkTarget;
+import com.sandpolis.core.foundation.cstruct.VResult;
+import com.sandpolis.core.foundation.cstruct.ValidatableConfigStruct;
 import com.sandpolis.core.net.Channel.ChannelTransportProtocol;
 import com.sandpolis.core.net.util.ChannelUtil;
 
@@ -30,31 +31,105 @@ import io.netty.util.concurrent.EventExecutor;
 
 /**
  * A {@link ConnectionLoop} makes repeated connection attempts to a set of
- * {@link NetworkTarget}s until a connection is made or the maximum iteration
- * count has been reached. The connection attempt interval can be configured to
- * eventually ease up on a host that is consistently refusing connections.
+ * targets until either a connection is made or the maximum iteration count has
+ * been reached. The connection attempt interval can be configured to slowly
+ * ease up on a host that is consistently refusing connections (exponential
+ * cooldown).
  *
- * @since 5.0.0
+ * @since 0.1.0
  */
 public final class ConnectionLoop implements Runnable {
 
+	public static final class ConfigStruct extends ValidatableConfigStruct {
+
+		/**
+		 * The Netty {@link Bootstrap} to use for the connection attempt.
+		 */
+		public final Bootstrap bootstrap = new Bootstrap();
+
+		/**
+		 * The amount of time to wait after each failed attempt in milliseconds.
+		 */
+		public int cooldown = 5000;
+
+		/**
+		 * The exponential cooldown time constant which is the number of iterations
+		 * required for the total cooldown to increase by a factor of the initial
+		 * cooldown. A value of 0 disables exponential cooldown.
+		 */
+		public double cooldownConstant = 0.0;
+
+		/**
+		 * The maximum cooldown in milliseconds. This value is only applicable when
+		 * exponential cooldown is enabled. A value of 0 implies there is no limit.
+		 */
+		public int cooldownLimit = 0;
+
+		/**
+		 * The maximum number of attempts to make before giving up.
+		 */
+		public int iterationLimit = 0;
+
+		/**
+		 * A set of targets that will be tried sequentially.
+		 */
+		public final List<Target> targets = new ArrayList<>();
+
+		/**
+		 * The connection timeout in milliseconds.
+		 */
+		public int timeout = 1000;
+
+		public void address(String address) {
+			if (address.contains(":")) {
+				var components = address.split(":");
+				address(components[0], Integer.parseInt(components[1]));
+			} else {
+				address(address, 8768);
+			}
+		}
+
+		public void address(String address, int port) {
+			targets.add(new Target(address, port));
+		}
+
+		@Override
+		protected VResult validate() {
+			if (timeout <= 0) {
+				return new VResult("Invalid timeout: " + timeout);
+			}
+
+			if (cooldown < 0) {
+				return new VResult("Invalid cooldown: " + cooldown);
+			}
+
+			if (iterationLimit < 0) {
+				return new VResult("Invalid iterationLimit: " + iterationLimit);
+			}
+
+			if (targets.size() == 0) {
+				return new VResult("No targets specified");
+			}
+
+			return new VResult(true);
+		}
+	}
+
+	/**
+	 * Represents an IP address or DNS name and a port.
+	 */
+	public static record Target(String address, int port) {
+	}
+
 	public static final Logger log = LoggerFactory.getLogger(ConnectionLoop.class);
 
-	/**
-	 * The loop configuration.
-	 */
-	private final LoopConfig config;
-
-	/**
-	 * The {@link Bootstrap} which will be used for each connection attempt.
-	 */
 	private final Bootstrap bootstrap;
 
-	/**
-	 * The {@link ConnectionFuture} that will be notified by a successful connection
-	 * attempt or when the maximum iteration count is reached.
-	 */
-	private final ConnectionFuture future;
+	private int cooldown;
+
+	private final double cooldownConstant;
+
+	private final int cooldownLimit;
 
 	/**
 	 * The exponential function that calculates the connection cooldown.
@@ -62,51 +137,39 @@ public final class ConnectionLoop implements Runnable {
 	private final Supplier<Integer> exponential;
 
 	/**
-	 * The current connection cooldown.
+	 * The {@link ConnectionFuture} that will be notified by a successful connection
+	 * attempt or when the maximum iteration count is reached.
 	 */
-	private int cooldown;
+	private final ConnectionFuture future;
 
-	/**
-	 * The current iteration ordinal.
-	 */
 	private int iteration;
 
-	/**
-	 * Create a new single-iteration {@link ConnectionLoop}.
-	 *
-	 * @param address The target address
-	 * @param port    The target port
-	 * @param timeout The connection timeout in milliseconds
-	 */
-	public ConnectionLoop(String address, int port, int timeout, Bootstrap bootstrap) {
-		this(LoopConfig.newBuilder().addTarget(NetworkTarget.newBuilder().setAddress(address).setPort(port))
-				.setTimeout(timeout).setIterationLimit(1), bootstrap);
-	}
+	private final int iterationLimit;
 
-	/**
-	 * Create a new {@link ConnectionLoop}.
-	 *
-	 * @param config The configuration object
-	 */
-	public ConnectionLoop(LoopConfig.Builder config, Bootstrap bootstrap) {
-		this(config.build(), bootstrap);
-	}
+	private final List<Target> targets;
 
-	/**
-	 * Create a new {@link ConnectionLoop}.
-	 *
-	 * @param config The configuration object
-	 */
-	public ConnectionLoop(LoopConfig config, Bootstrap bootstrap) {
-		checkArgument(config.getIterationLimit() >= 0);
-		checkArgument(config.getCooldown() >= 0);
-		checkArgument(config.getTimeout() > 0);
+	public ConnectionLoop(Consumer<ConfigStruct> configurator) {
+		var config = new ConfigStruct();
+		configurator.accept(config);
 
-		this.config = Objects.requireNonNull(config);
-		this.bootstrap = Objects.requireNonNull(bootstrap);
+		var result = config.validate();
+		if (!result.result) {
+			throw new RuntimeException("Failed to initialize connection loop: " + result.message.get());
+		}
+
+		this.bootstrap = config.bootstrap;
+		this.targets = config.targets;
+		this.cooldown = config.cooldown;
+		this.cooldownConstant = config.cooldownConstant;
+		this.cooldownLimit = config.cooldownLimit;
+		this.iterationLimit = config.iterationLimit;
 
 		// Set channel options
-		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getTimeout());
+		bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.timeout);
+
+		if (bootstrap.config().group() == null) {
+			bootstrap.group(ThreadStore.get("net.connection.outgoing"));
+		}
 
 		// Set default channel factory
 		if (bootstrap.config().channelFactory() == null) {
@@ -117,38 +180,44 @@ public final class ConnectionLoop implements Runnable {
 		this.future = new ConnectionFuture((EventExecutor) ThreadStore.get("net.connection.loop"));
 
 		// Setup cooldown supplier
-		if (config.getCooldownConstant() == 0 || config.getCooldownLimit() <= config.getCooldown()) {
-			this.exponential = config::getCooldown;
+		if (cooldownConstant == 0 || cooldownLimit <= config.cooldown) {
+			this.exponential = () -> cooldown;
 		} else {
 			this.exponential = () -> {
-				return (int) Math.min(config.getCooldownLimit(), config.getCooldown()
-						* Math.pow(config.getCooldown(), iteration / config.getCooldownConstant()));
+				return (int) Math.min(cooldownLimit,
+						config.cooldown * Math.pow(config.cooldown, iteration / cooldownConstant));
 			};
 		}
-		this.cooldown = config.getCooldown();
+		this.cooldown = config.cooldown;
+	}
+
+	/**
+	 * Get the loop's {@link ConnectionFuture}.
+	 *
+	 * @return The connection future
+	 */
+	public ConnectionFuture future() {
+		return future;
 	}
 
 	@Override
 	public void run() {
-
+		System.out.println();
 		try {
-			while (iteration < config.getIterationLimit() || config.getIterationLimit() == 0) {
+			while (iteration < iterationLimit || iterationLimit == 0) {
 
-				for (NetworkTarget target : config.getTargetList()) {
+				for (var target : targets) {
 
-					ConnectionFuture connect = new ConnectionFuture(
-							bootstrap.remoteAddress(target.getAddress(), target.getPort()).connect());
-
-					try {
-						connect.sync();
-					} catch (Exception e) {
-						log.debug("Connection attempt failed: {}", e.getMessage());
-					}
+					log.debug("Attempting connection to {} on port {}", target.address(), target.port());
+					var connect = new ConnectionFuture(
+							bootstrap.remoteAddress(target.address(), target.port()).connect()).await();
 
 					if (connect.isSuccess()) {
 						log.debug("Connection attempt succeeded");
-						this.future.setSuccess(connect.get());
+						future.setSuccess(connect.get());
 						return;
+					} else {
+						log.debug("Connection attempt failed");
 					}
 
 					iteration++;
@@ -161,46 +230,30 @@ public final class ConnectionLoop implements Runnable {
 			// Maximum iteration count exceeded
 			future.setSuccess(null);
 		} catch (Exception e) {
+			log.debug("Terminating connection loop");
 			future.setFailure(e);
 		}
 	}
 
 	/**
-	 * Start the {@link ConnectionLoop}.
+	 * Begin the connection process.
 	 *
-	 * @return A {@link ConnectionFuture}
+	 * @return A future which will receive the connection if successful
 	 */
-	public ConnectionFuture start() {
+	public ConnectionLoop start() {
 		return start((ExecutorService) ThreadStore.get("net.connection.loop"));
 	}
 
 	/**
-	 * Start the {@link ConnectionLoop}.
+	 * Begin the connection process on the given {@link ExecutorService}.
 	 *
 	 * @param executor The executor service
-	 * @return A {@link ConnectionFuture}
+	 * @return A future which will receive the connection if successful
 	 */
-	public ConnectionFuture start(ExecutorService executor) {
+	public ConnectionLoop start(ExecutorService executor) {
+		log.debug("Starting connection loop");
 		executor.execute(this);
-		return future;
-	}
-
-	/**
-	 * Get the loop's {@link ConnectionFuture}.
-	 *
-	 * @return The connection future
-	 */
-	public ConnectionFuture future() {
-		return future;
-	}
-
-	/**
-	 * Get the loop's {@link LoopConfig}.
-	 *
-	 * @return The immutable configuration of this {@link ConnectionLoop}
-	 */
-	public LoopConfig getConfig() {
-		return config;
+		return this;
 	}
 
 }

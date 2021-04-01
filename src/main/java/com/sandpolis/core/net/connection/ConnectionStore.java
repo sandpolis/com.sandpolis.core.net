@@ -102,26 +102,13 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 	}
 
 	/**
-	 * Create a new {@link ConnectionLoop} with the given configuration. The loop is
-	 * automatically started.
-	 *
-	 * @param config The connection loop configuration
-	 * @return The new connection loop
+	 * Create and start a new {@link ConnectionLoop} with the given configuration.
+	 * 
+	 * @param configurator The loop configuration
+	 * @return A new connection loop
 	 */
-	public ConnectionLoop connect(LoopConfig config) {
-		Objects.requireNonNull(config);
-
-		Bootstrap bootstrap = new Bootstrap().handler(new ClientChannelInitializer(struct -> {
-			struct.clientTlsInsecure();
-		}));
-
-		if (bootstrap.config().group() == null)
-			bootstrap.group(ThreadStore.get("net.connection.outgoing"));
-
-		ConnectionLoop loop = new ConnectionLoop(config, bootstrap);
-		loop.start();
-
-		return loop;
+	public ConnectionLoop connect(Consumer<ConnectionLoop.ConfigStruct> configurator) {
+		return new ConnectionLoop(configurator).start();
 	}
 
 	@Subscribe
