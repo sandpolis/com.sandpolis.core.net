@@ -42,11 +42,20 @@ public class ManagementHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
+		log.debug("Channel now active: {}", ctx.channel().id());
 	}
 
 	@Override
 	public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+		log.debug("Channel now inactive: {}", ctx.channel().id());
+
 		var connection = ctx.channel().attr(ChannelConstant.SOCK).get();
+		var handshake_future = ctx.channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get();
+
+		if (!handshake_future.isDone()) {
+			handshake_future.cancel(true);
+		}
+
 		ConnectionStore.removeValue(connection);
 		ConnectionStore.postAsync(SockLostEvent::new, connection);
 		ctx.close();
@@ -54,10 +63,14 @@ public class ManagementHandler extends ChannelInboundHandlerAdapter {
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-		try {
-			log.debug("An exception occurred in the pipeline", cause);
-		} finally {
-			ReferenceCountUtil.release(cause);
+
+		log.debug("An exception occurred in the pipeline", cause);
+
+		var connection = ctx.channel().attr(ChannelConstant.SOCK).get();
+		var handshake_future = ctx.channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get();
+
+		if (!handshake_future.isDone()) {
+			handshake_future.cancel(true);
 		}
 	}
 
@@ -71,12 +84,15 @@ public class ManagementHandler extends ChannelInboundHandlerAdapter {
 			} else if (evt instanceof CvidHandshakeCompletionEvent) {
 				CvidHandshakeCompletionEvent event = (CvidHandshakeCompletionEvent) evt;
 
+				var connection = ctx.channel().attr(ChannelConstant.SOCK).get();
+				var handshake_future = ctx.channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get();
+
 				if (event.success) {
-					ctx.channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get().setSuccess(null);
-					ConnectionStore.postAsync(SockEstablishedEvent::new,
-							ctx.channel().attr(ChannelConstant.SOCK).get());
+					handshake_future.setSuccess(null);
+					ConnectionStore.postAsync(SockEstablishedEvent::new, connection);
 				} else {
-					ctx.channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get().setFailure(null);
+					ConnectionStore.removeValue(connection);
+					handshake_future.cancel(true);
 				}
 			}
 		} finally {

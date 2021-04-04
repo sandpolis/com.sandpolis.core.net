@@ -9,6 +9,8 @@
 //============================================================================//
 package com.sandpolis.core.net.connection;
 
+import static com.sandpolis.core.net.connection.ConnectionStore.ConnectionStore;
+
 import com.sandpolis.core.net.channel.ChannelConstant;
 
 import io.netty.channel.ChannelFuture;
@@ -54,15 +56,19 @@ public class ConnectionFuture extends DefaultPromise<Connection> {
 		super(executor);
 
 		connect.addListener((ChannelFuture future) -> {
+			var connection = future.channel().attr(ChannelConstant.SOCK).get();
+
 			if (!future.isSuccess()) {
+				ConnectionStore.removeValue(connection);
 				ConnectionFuture.this.setFailure(future.cause());
 				return;
 			}
 
 			future.channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get().addListener(handshakeFuture -> {
 				if (handshakeFuture.isSuccess()) {
-					ConnectionFuture.this.setSuccess(future.channel().attr(ChannelConstant.SOCK).get());
+					ConnectionFuture.this.setSuccess(connection);
 				} else {
+					ConnectionStore.removeValue(connection);
 					ConnectionFuture.this.setFailure(handshakeFuture.cause());
 				}
 			});

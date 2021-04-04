@@ -51,7 +51,11 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 	}
 
 	public Optional<Connection> getByCvid(int cvid) {
-		return values().stream().filter(connection -> connection.get(ConnectionOid.REMOTE_CVID) == cvid).findFirst();
+
+		return values().stream().filter(connection -> {
+			var attr = connection.attribute(ConnectionOid.REMOTE_CVID);
+			return attr.isPresent() && attr.get() == cvid;
+		}).findFirst();
 	}
 
 	/**
@@ -109,11 +113,6 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 	 */
 	public ConnectionLoop connect(Consumer<ConnectionLoop.ConfigStruct> configurator) {
 		return new ConnectionLoop(configurator).start();
-	}
-
-	@Subscribe
-	private void onSockLost(SockLostEvent event) {
-		removeValue(event.get());
 	}
 
 	@Override

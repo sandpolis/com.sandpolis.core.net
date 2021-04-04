@@ -125,6 +125,12 @@ public class EntangledDocument extends EntangledObject<ProtoDocument> implements
 	}
 
 	@Override
+	public void remove(String id) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
 	public int documentCount() {
 		// TODO Auto-generated method stub
 		return 0;

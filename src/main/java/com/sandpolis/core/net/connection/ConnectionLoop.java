@@ -202,7 +202,7 @@ public final class ConnectionLoop implements Runnable {
 
 	@Override
 	public void run() {
-		System.out.println();
+
 		try {
 			while (iteration < iterationLimit || iterationLimit == 0) {
 
