@@ -14,10 +14,8 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 import com.sandpolis.core.instance.State.ProtoDocument;
-import com.sandpolis.core.instance.state.oid.AbsoluteOid;
 import com.sandpolis.core.instance.state.oid.Oid;
 import com.sandpolis.core.instance.state.oid.RelativeOid;
-import com.sandpolis.core.instance.state.st.AbstractSTObject;
 import com.sandpolis.core.instance.state.st.STAttribute;
 import com.sandpolis.core.instance.state.st.STDocument;
 import com.sandpolis.core.instance.state.st.STObject;
@@ -27,12 +25,15 @@ public class EntangledDocument extends EntangledObject<ProtoDocument> implements
 
 	private STDocument container;
 
-	public EntangledDocument(STDocument container, STSyncStruct config) {
+	public EntangledDocument(STDocument container, Consumer<STSyncStruct> configurator) {
 		super(container.parent(), container.oid());
 		this.container = Objects.requireNonNull(container);
 
 		if (container instanceof EntangledObject)
 			throw new IllegalArgumentException("Entanged objects cannot be nested");
+
+		var config = new STSyncStruct();
+		configurator.accept(config);
 
 		// Start streams
 		switch (config.direction) {

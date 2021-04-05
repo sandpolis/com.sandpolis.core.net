@@ -9,6 +9,8 @@
 //============================================================================//
 package com.sandpolis.core.net.state;
 
+import static com.sandpolis.core.instance.state.STStore.STStore;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
@@ -21,6 +23,7 @@ import com.sandpolis.core.foundation.ConfigStruct;
 import com.sandpolis.core.foundation.Result.Outcome;
 import com.sandpolis.core.foundation.util.IDUtil;
 import com.sandpolis.core.instance.State.ProtoDocument;
+import com.sandpolis.core.instance.state.STStore;
 import com.sandpolis.core.instance.state.oid.AbsoluteOid;
 import com.sandpolis.core.instance.state.oid.Oid;
 import com.sandpolis.core.instance.state.st.STDocument;
@@ -93,22 +96,30 @@ public class STCmd extends Cmdlet<STCmd> {
 	}
 
 	public CompletionStage<EntangledDocument> sync(AbsoluteOid<STDocument> oid) {
-		return sync(oid, struct -> {
-			struct.connection = target;
+		return sync(oid, config -> {
+			config.connection = target;
+			config.initiator = true;
 		});
 	}
 
 	public CompletionStage<EntangledDocument> sync(AbsoluteOid<STDocument> oid, Consumer<STSyncStruct> configurator) {
 		if (!oid.isConcrete())
-			throw new IllegalArgumentException("A concrete OID is required");
+			throw new IllegalArgumentException("A concrete OID is required (" + oid + ")");
+		if (oid.size() == 0)
+			throw new IllegalArgumentException("Empty OID");
 
-		final var config = new STSyncStruct();
-		config.initiator = true;
+		var config = new STSyncStruct();
 		configurator.accept(config);
+
+		if (!config.initiator) {
+			throw new IllegalArgumentException();
+		}
 
 		for (var o : config.whitelist)
 			if (!o.isChildOf(oid))
 				throw new IllegalArgumentException();
+
+		log.debug("Sending sync command for OID: {}", oid);
 
 		var rq = RQ_STSync.newBuilder() //
 				.setStreamId(config.streamId) //
@@ -118,7 +129,7 @@ public class STCmd extends Cmdlet<STCmd> {
 
 		config.whitelist.stream().map(Oid::toString).forEach(rq::addWhitelist);
 
-		var document = new EntangledDocument(new EphemeralDocument(), config);
+		var document = new EntangledDocument(STStore.get(oid), configurator);
 
 		return request(Outcome.class, rq).thenApply(rs -> {
 			return document;

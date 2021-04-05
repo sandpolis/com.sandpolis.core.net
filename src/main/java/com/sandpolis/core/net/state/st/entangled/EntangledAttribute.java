@@ -11,6 +11,7 @@ package com.sandpolis.core.net.state.st.entangled;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import com.sandpolis.core.instance.State.ProtoAttribute;
@@ -27,12 +28,15 @@ public class EntangledAttribute<T> extends EntangledObject<ProtoAttribute> imple
 
 	private STAttribute<T> container;
 
-	public EntangledAttribute(STAttribute<T> container, STSyncStruct config) {
+	public EntangledAttribute(STAttribute<T> container, Consumer<STSyncStruct> configurator) {
 		super(null, AbsoluteOid.ROOT);
 		this.container = Objects.requireNonNull(container);
 
 		if (container instanceof EntangledObject)
 			throw new IllegalArgumentException("Entanged objects cannot be nested");
+		
+		var config = new STSyncStruct();
+		configurator.accept(config);
 
 		// Start streams
 		switch (config.direction) {

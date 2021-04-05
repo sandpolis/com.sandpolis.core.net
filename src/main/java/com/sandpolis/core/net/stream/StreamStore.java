@@ -96,6 +96,7 @@ public final class StreamStore extends StoreBase
 
 	public synchronized <E extends MessageLite> void add(InboundStreamAdapter<E> in, OutboundStreamAdapter<E> out) {
 		checkArgument(!in.isSubscribed(out));
+		log.debug("Connecting inbound stream {} to outbound stream {}", in, out);
 		in.subscribe(out);
 
 		this.inbound.add(in);
@@ -104,6 +105,7 @@ public final class StreamStore extends StoreBase
 
 	public synchronized <E extends MessageLite> void add(InboundStreamAdapter<E> in, StreamSink<E> sink) {
 		checkArgument(!in.isSubscribed(sink));
+		log.debug("Connecting inbound stream {} to sink stream {}", in, sink);
 		in.subscribe(sink);
 
 		this.inbound.add(in);
@@ -112,6 +114,7 @@ public final class StreamStore extends StoreBase
 
 	public synchronized <E extends MessageLite> void add(StreamSource<E> source, OutboundStreamAdapter<E> out) {
 		checkArgument(!source.isSubscribed(out));
+		log.debug("Connecting source stream {} to outbound stream {}", source, out);
 		source.subscribe(out);
 
 		this.source.add(source);
@@ -120,6 +123,7 @@ public final class StreamStore extends StoreBase
 
 	public synchronized <E extends MessageLite> void add(StreamSource<E> source, StreamSink<E> sink) {
 		checkArgument(!source.isSubscribed(sink));
+		log.debug("Connecting source stream {} to sink stream {}", source, sink);
 		source.subscribe(sink);
 
 		this.source.add(source);

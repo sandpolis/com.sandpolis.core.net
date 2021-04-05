@@ -106,8 +106,8 @@ public abstract class EntangledObject<T extends MessageLite> extends AbstractSTO
 
 	@Subscribe
 	void handle(STDocument.DocumentAddedEvent event) {
-		var snapshot = ProtoDocument.newBuilder(event.document.snapshot());
-		snapshot.setPath(event.document.oid().toString());
+		var snapshot = ProtoDocument.newBuilder(event.newDocument.snapshot());
+		snapshot.setPath(event.newDocument.oid().toString());
 
 		getSource().submit((T) snapshot.build());
 	}
@@ -115,6 +115,6 @@ public abstract class EntangledObject<T extends MessageLite> extends AbstractSTO
 	@Subscribe
 	void handle(STDocument.DocumentRemovedEvent event) {
 		getSource().submit(
-				(T) ProtoDocument.newBuilder().setPath(event.document.oid().toString()).setRemoval(true).build());
+				(T) ProtoDocument.newBuilder().setPath(event.oldDocument.oid().toString()).setRemoval(true).build());
 	}
 }
