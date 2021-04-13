@@ -76,8 +76,8 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 	private synchronized void onSockLost(SockLostEvent event) {
 		event.ifPresent(connection -> {
 			if (network.nodes().contains(Core.cvid())
-					&& network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID)))
-				network.edgeConnecting(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID))
+					&& network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID).asInt()))
+				network.edgeConnecting(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID).asInt())
 						.ifPresent(network::removeEdge);
 
 			// Remove nodes that are now disconnected
@@ -88,14 +88,15 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 				// Check whether a server is still reachable after losing the connection
 				for (var node : network.nodes()) {
 					if (CvidUtil.extractInstance(node) == InstanceType.SERVER) {
-						if (network.edgesConnecting(node, connection.get(ConnectionOid.REMOTE_CVID)).size() > 0) {
+						if (network.edgesConnecting(node, connection.get(ConnectionOid.REMOTE_CVID).asInt())
+								.size() > 0) {
 							return;
 						}
 					}
 				}
 
 				// No servers are reachable
-				post(ServerLostEvent::new, connection.get(ConnectionOid.REMOTE_CVID));
+				post(ServerLostEvent::new, connection.get(ConnectionOid.REMOTE_CVID).asInt());
 			}
 		});
 	}
@@ -105,18 +106,19 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 		event.ifPresent(connection -> {
 
 			// Add node if not already present
-			if (!network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID))) {
-				network.addNode(connection.get(ConnectionOid.REMOTE_CVID));
+			if (!network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID).asInt())) {
+				network.addNode(connection.get(ConnectionOid.REMOTE_CVID).asInt());
 			}
 
 			// Add edge representing the new connection
-			network.addEdge(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID), new NetworkConnection(null));
+			network.addEdge(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID).asInt(),
+					new NetworkConnection(null));
 
 			if (Core.INSTANCE != InstanceType.SERVER) {
 				// See if that was the first connection to a server
-				if (connection.get(ConnectionOid.REMOTE_INSTANCE) == InstanceType.SERVER) {
+				if (connection.get(ConnectionOid.REMOTE_INSTANCE).asInstanceType() == InstanceType.SERVER) {
 					// TODO
-					post(ServerEstablishedEvent::new, connection.get(ConnectionOid.REMOTE_CVID));
+					post(ServerEstablishedEvent::new, connection.get(ConnectionOid.REMOTE_CVID).asInt());
 				}
 			}
 		});

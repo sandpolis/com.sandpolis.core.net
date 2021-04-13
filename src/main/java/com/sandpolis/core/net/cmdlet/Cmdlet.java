@@ -51,7 +51,7 @@ public abstract class Cmdlet<E extends Cmdlet<E>> {
 	 */
 	public E target(Connection sock) {
 		this.target = checkNotNull(sock);
-		this.cvid = sock.get(ConnectionOid.REMOTE_CVID);
+		this.cvid = sock.get(ConnectionOid.REMOTE_CVID).asInt();
 		return (E) this;
 	}
 

@@ -22,12 +22,9 @@ import org.slf4j.LoggerFactory;
 import com.sandpolis.core.foundation.ConfigStruct;
 import com.sandpolis.core.foundation.Result.Outcome;
 import com.sandpolis.core.foundation.util.IDUtil;
-import com.sandpolis.core.instance.State.ProtoDocument;
-import com.sandpolis.core.instance.state.STStore;
-import com.sandpolis.core.instance.state.oid.AbsoluteOid;
+import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
 import com.sandpolis.core.instance.state.oid.Oid;
-import com.sandpolis.core.instance.state.st.STDocument;
-import com.sandpolis.core.instance.state.st.ephemeral.EphemeralDocument;
+import com.sandpolis.core.instance.state.st.EphemeralDocument;
 import com.sandpolis.core.net.cmdlet.Cmdlet;
 import com.sandpolis.core.net.connection.Connection;
 import com.sandpolis.core.net.msg.MsgState.RQ_STSnapshot;
@@ -68,13 +65,12 @@ public class STCmd extends Cmdlet<STCmd> {
 	private STCmd() {
 	}
 
-	public CompletionStage<EphemeralDocument> snapshot(AbsoluteOid<STDocument> oid) {
+	public CompletionStage<EphemeralDocument> snapshot(Oid oid) {
 		return snapshot(oid, struct -> {
 		});
 	}
 
-	public CompletionStage<EphemeralDocument> snapshot(AbsoluteOid<STDocument> oid,
-			Consumer<STSnapshotStruct> configurator) {
+	public CompletionStage<EphemeralDocument> snapshot(Oid oid, Consumer<STSnapshotStruct> configurator) {
 		if (!oid.isConcrete())
 			throw new IllegalArgumentException("A concrete OID is required");
 
@@ -82,7 +78,7 @@ public class STCmd extends Cmdlet<STCmd> {
 		configurator.accept(config);
 
 		for (var o : config.whitelist)
-			if (!o.isChildOf(oid))
+			if (!oid.isAncestorOf(o))
 				throw new IllegalArgumentException();
 
 		var rq = RQ_STSnapshot.newBuilder() //
@@ -90,22 +86,23 @@ public class STCmd extends Cmdlet<STCmd> {
 
 		config.whitelist.stream().map(Oid::toString).forEach(rq::addWhitelist);
 
-		return request(ProtoDocument.class, rq).thenApply(rs -> {
-			return new EphemeralDocument(rs);
+		return request(ProtoSTObjectUpdate.class, rq).thenApply(rs -> {
+//			return new EphemeralDocument(rs);
+			return null;
 		});
 	}
 
-	public CompletionStage<EntangledDocument> sync(AbsoluteOid<STDocument> oid) {
+	public CompletionStage<EntangledDocument> sync(Oid oid) {
 		return sync(oid, config -> {
 			config.connection = target;
 			config.initiator = true;
 		});
 	}
 
-	public CompletionStage<EntangledDocument> sync(AbsoluteOid<STDocument> oid, Consumer<STSyncStruct> configurator) {
+	public CompletionStage<EntangledDocument> sync(Oid oid, Consumer<STSyncStruct> configurator) {
 		if (!oid.isConcrete())
 			throw new IllegalArgumentException("A concrete OID is required (" + oid + ")");
-		if (oid.size() == 0)
+		if (oid.path().length == 0)
 			throw new IllegalArgumentException("Empty OID");
 
 		var config = new STSyncStruct();
@@ -116,7 +113,7 @@ public class STCmd extends Cmdlet<STCmd> {
 		}
 
 		for (var o : config.whitelist)
-			if (!o.isChildOf(oid))
+			if (!oid.isAncestorOf(o))
 				throw new IllegalArgumentException();
 
 		log.debug("Sending sync command for OID: {}", oid);

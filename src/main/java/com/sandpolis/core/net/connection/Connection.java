@@ -77,32 +77,32 @@ public class Connection extends AbstractSTDomainObject {
 		channel.attr(ChannelConstant.AUTH_STATE).set(false);
 		channel.attr(ChannelConstant.CERTIFICATE_STATE).set(false);
 
-		attribute(ConnectionOid.CERTIFICATE_VALID).source(channel().attr(ChannelConstant.CERTIFICATE_STATE)::get);
-		attribute(ConnectionOid.AUTHENTICATED).source(channel().attr(ChannelConstant.AUTH_STATE)::get);
-		attribute(ConnectionOid.CONNECTED)
+		get(ConnectionOid.CERTIFICATE_VALID).source(channel().attr(ChannelConstant.CERTIFICATE_STATE)::get);
+		get(ConnectionOid.AUTHENTICATED).source(channel().attr(ChannelConstant.AUTH_STATE)::get);
+		get(ConnectionOid.CONNECTED)
 				.source(() -> channel().attr(ChannelConstant.HANDSHAKE_FUTURE).get().isDone() && channel().isActive());
-		attribute(ConnectionOid.CUMULATIVE_READ_BYTES).source(() -> {
+		get(ConnectionOid.CUMULATIVE_READ_BYTES).source(() -> {
 			var trafficHandler = getTrafficHandler();
 			if (trafficHandler.isPresent()) {
 				return trafficHandler.get().trafficCounter().cumulativeReadBytes();
 			}
 			return -1L;
 		});
-		attribute(ConnectionOid.CUMULATIVE_WRITE_BYTES).source(() -> {
+		get(ConnectionOid.CUMULATIVE_WRITE_BYTES).source(() -> {
 			var trafficHandler = getTrafficHandler();
 			if (trafficHandler.isPresent()) {
 				return trafficHandler.get().trafficCounter().cumulativeWrittenBytes();
 			}
 			return -1L;
 		});
-		attribute(ConnectionOid.READ_THROUGHPUT).source(() -> {
+		get(ConnectionOid.READ_THROUGHPUT).source(() -> {
 			var trafficHandler = getTrafficHandler();
 			if (trafficHandler.isPresent()) {
 				return trafficHandler.get().trafficCounter().lastReadThroughput();
 			}
 			return -1L;
 		});
-		attribute(ConnectionOid.WRITE_THROUGHPUT).source(() -> {
+		get(ConnectionOid.WRITE_THROUGHPUT).source(() -> {
 			var trafficHandler = getTrafficHandler();
 			if (trafficHandler.isPresent()) {
 				return trafficHandler.get().trafficCounter().lastWriteThroughput();
@@ -111,50 +111,50 @@ public class Connection extends AbstractSTDomainObject {
 		});
 
 		if (this.channel instanceof EmbeddedChannel) {
-			attribute(ConnectionOid.REMOTE_ADDRESS).source(() -> {
-				if (!get(ConnectionOid.CONNECTED))
+			get(ConnectionOid.REMOTE_ADDRESS).source(() -> {
+				if (!get(ConnectionOid.CONNECTED).asBoolean())
 					return null;
 
 				return channel().remoteAddress().toString();
 			});
 		} else {
-			attribute(ConnectionOid.REMOTE_ADDRESS).source(() -> {
-				if (!get(ConnectionOid.CONNECTED))
+			get(ConnectionOid.REMOTE_ADDRESS).source(() -> {
+				if (!get(ConnectionOid.CONNECTED).asBoolean())
 					return null;
 
 				return ((InetSocketAddress) channel().remoteAddress()).getAddress().getHostAddress();
 			});
 		}
 
-		attribute(ConnectionOid.REMOTE_PORT).source(() -> {
-			if (!get(ConnectionOid.CONNECTED))
+		get(ConnectionOid.REMOTE_PORT).source(() -> {
+			if (!get(ConnectionOid.CONNECTED).asBoolean())
 				return null;
 
 			return ((InetSocketAddress) channel().remoteAddress()).getPort();
 		});
 
-		attribute(ConnectionOid.LOCAL_PORT).source(() -> {
-			if (!get(ConnectionOid.CONNECTED))
+		get(ConnectionOid.LOCAL_PORT).source(() -> {
+			if (!get(ConnectionOid.CONNECTED).asBoolean())
 				return null;
 
 			return ((InetSocketAddress) channel().localAddress()).getPort();
 		});
 
-		attribute(ConnectionOid.REMOTE_INSTANCE).source(() -> {
-			if (!attribute(ConnectionOid.REMOTE_CVID).isPresent())
+		get(ConnectionOid.REMOTE_INSTANCE).source(() -> {
+			if (!get(ConnectionOid.REMOTE_CVID).isPresent())
 				return null;
 
-			return CvidUtil.extractInstance(get(ConnectionOid.REMOTE_CVID));
+			return CvidUtil.extractInstance(get(ConnectionOid.REMOTE_CVID).asInt());
 		});
 
-		attribute(ConnectionOid.REMOTE_INSTANCE_FLAVOR).source(() -> {
-			if (!attribute(ConnectionOid.REMOTE_CVID).isPresent())
+		get(ConnectionOid.REMOTE_INSTANCE_FLAVOR).source(() -> {
+			if (!get(ConnectionOid.REMOTE_CVID).isPresent())
 				return null;
 
-			return CvidUtil.extractInstanceFlavor(get(ConnectionOid.REMOTE_CVID));
+			return CvidUtil.extractInstanceFlavor(get(ConnectionOid.REMOTE_CVID).asInt());
 		});
 
-		attribute(ConnectionOid.LOCAL_CVID).source(Core::cvid);
+		get(ConnectionOid.LOCAL_CVID).source(Core::cvid);
 	}
 
 	/**
@@ -162,8 +162,8 @@ public class Connection extends AbstractSTDomainObject {
 	 * it to handle messages that require authentication.
 	 */
 	public void authenticate() {
-		checkState(get(ConnectionOid.CONNECTED));
-		checkState(!get(ConnectionOid.AUTHENTICATED));
+		checkState(get(ConnectionOid.CONNECTED).asBoolean());
+		checkState(!get(ConnectionOid.AUTHENTICATED).asBoolean());
 
 		channel().attr(ChannelConstant.AUTH_STATE).set(true);
 	}
@@ -192,8 +192,8 @@ public class Connection extends AbstractSTDomainObject {
 	 * prevents it from handling messages that require authentication.
 	 */
 	public void deauthenticate() {
-		checkState(get(ConnectionOid.CONNECTED));
-		checkState(get(ConnectionOid.AUTHENTICATED));
+		checkState(get(ConnectionOid.CONNECTED).asBoolean());
+		checkState(get(ConnectionOid.AUTHENTICATED).asBoolean());
 
 		channel().attr(ChannelConstant.AUTH_STATE).set(false);
 	}
@@ -234,7 +234,7 @@ public class Connection extends AbstractSTDomainObject {
 	}
 
 	public X509Certificate getRemoteCertificate() throws SSLPeerUnverifiedException {
-		checkState(get(ConnectionOid.CONNECTED));
+		checkState(get(ConnectionOid.CONNECTED).asBoolean());
 
 		return (X509Certificate) getHandler(HandlerKey.TLS)
 				.orElseThrow(() -> new SSLPeerUnverifiedException("SSL is disabled"))
@@ -312,8 +312,8 @@ public class Connection extends AbstractSTDomainObject {
 	 * @return An asynchronous {@link CompletionStage}
 	 */
 	public <E extends MessageLite> CompletionStage<E> request(Class<E> responseType, MessageLiteOrBuilder payload) {
-		return request(MsgUtil.rq(payload).setTo(get(ConnectionOid.REMOTE_CVID)).setFrom(get(ConnectionOid.LOCAL_CVID))
-				.build()).toCompletionStage(responseType);
+		return request(MsgUtil.rq(payload).setTo(get(ConnectionOid.REMOTE_CVID).asInt())
+				.setFrom(get(ConnectionOid.LOCAL_CVID).asInt()).build()).toCompletionStage(responseType);
 	}
 
 	/**

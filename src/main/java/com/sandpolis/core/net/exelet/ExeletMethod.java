@@ -61,7 +61,7 @@ public class ExeletMethod {
 
 			handler = context -> {
 				// Access control
-				if (!context.connector.get(ConnectionOid.AUTHENTICATED) && metadata.auth()) {
+				if (!context.connector.get(ConnectionOid.AUTHENTICATED).asBoolean() && metadata.auth()) {
 					return;
 				}
 
@@ -86,7 +86,7 @@ public class ExeletMethod {
 
 			handler = context -> {
 				// Access control
-				if (!context.connector.get(ConnectionOid.AUTHENTICATED) && metadata.auth()) {
+				if (!context.connector.get(ConnectionOid.AUTHENTICATED).asBoolean() && metadata.auth()) {
 					return;
 				}
 
@@ -109,7 +109,7 @@ public class ExeletMethod {
 
 			handler = context -> {
 				// Access control
-				if (!context.connector.get(ConnectionOid.AUTHENTICATED) && metadata.auth()) {
+				if (!context.connector.get(ConnectionOid.AUTHENTICATED).asBoolean() && metadata.auth()) {
 					return;
 				}
 
@@ -142,7 +142,7 @@ public class ExeletMethod {
 
 			handler = context -> {
 				// Access control
-				if (!context.connector.get(ConnectionOid.AUTHENTICATED) && metadata.auth()) {
+				if (!context.connector.get(ConnectionOid.AUTHENTICATED).asBoolean() && metadata.auth()) {
 					return;
 				}
 

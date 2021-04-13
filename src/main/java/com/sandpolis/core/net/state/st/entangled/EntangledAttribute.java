@@ -9,32 +9,40 @@
 //============================================================================//
 package com.sandpolis.core.net.state.st.entangled;
 
+import static com.sandpolis.core.net.stream.StreamStore.StreamStore;
+
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import com.sandpolis.core.instance.State.ProtoAttribute;
-import com.sandpolis.core.instance.state.oid.AbsoluteOid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
 import com.sandpolis.core.instance.state.oid.Oid;
-import com.sandpolis.core.instance.state.oid.RelativeOid;
+import com.sandpolis.core.instance.state.st.EphemeralAttribute.EphemeralAttributeValue;
 import com.sandpolis.core.instance.state.st.STAttribute;
-import com.sandpolis.core.instance.state.st.STAttributeValue;
 import com.sandpolis.core.instance.state.st.STDocument;
-import com.sandpolis.core.instance.state.st.STObject;
 import com.sandpolis.core.net.state.STCmd.STSyncStruct;
+import com.sandpolis.core.net.stream.InboundStreamAdapter;
+import com.sandpolis.core.net.stream.OutboundStreamAdapter;
+import com.sandpolis.core.net.stream.StreamSink;
+import com.sandpolis.core.net.stream.StreamSource;
 
-public class EntangledAttribute<T> extends EntangledObject<ProtoAttribute> implements STAttribute<T> {
+public class EntangledAttribute extends EntangledObject implements STAttribute {
 
-	private STAttribute<T> container;
+	private static final Logger log = LoggerFactory.getLogger(EntangledAttribute.class);
 
-	public EntangledAttribute(STAttribute<T> container, Consumer<STSyncStruct> configurator) {
-		super(null, AbsoluteOid.ROOT);
+	private STAttribute container;
+
+	public EntangledAttribute(STAttribute container, Consumer<STSyncStruct> configurator) {
+		super(container.parent(), container.oid());
 		this.container = Objects.requireNonNull(container);
 
 		if (container instanceof EntangledObject)
 			throw new IllegalArgumentException("Entanged objects cannot be nested");
-		
+
 		var config = new STSyncStruct();
 		configurator.accept(config);
 
@@ -42,11 +50,11 @@ public class EntangledAttribute<T> extends EntangledObject<ProtoAttribute> imple
 		switch (config.direction) {
 		case BIDIRECTIONAL:
 			startSource(config);
-			startSink(config, ProtoAttribute.class);
+			startSink(config);
 			break;
 		case DOWNSTREAM:
 			if (config.initiator) {
-				startSink(config, ProtoAttribute.class);
+				startSink(config);
 			} else {
 				startSource(config);
 			}
@@ -55,7 +63,7 @@ public class EntangledAttribute<T> extends EntangledObject<ProtoAttribute> imple
 			if (config.initiator) {
 				startSource(config);
 			} else {
-				startSink(config, ProtoAttribute.class);
+				startSink(config);
 			}
 			break;
 		default:
@@ -63,66 +71,104 @@ public class EntangledAttribute<T> extends EntangledObject<ProtoAttribute> imple
 		}
 	}
 
-	// Begin boilerplate
+	protected void startSink(STSyncStruct config) {
+		sink = new StreamSink<>() {
+
+			@Override
+			public void onNext(ProtoSTObjectUpdate item) {
+				if (log.isTraceEnabled()) {
+					log.trace("Merging snapshot: {}", item);
+				}
+//				container.merge(item);
+			};
+		};
+
+		StreamStore.add(new InboundStreamAdapter<>(config.streamId, config.connection, ProtoSTObjectUpdate.class),
+				getSink());
+	}
+
+	protected void startSource(STSyncStruct config) {
+		source = new StreamSource<>() {
+
+			@Override
+			public void start() {
+
+			}
+
+			@Override
+			public void stop() {
+
+			}
+		};
+
+		StreamStore.add(getSource(), new OutboundStreamAdapter<>(config.streamId, config.connection));
+		getSource().start();
+	}
 
 	@Override
 	public void addListener(Object listener) {
-		container.addListener(listener);
-	}
+		// TODO Auto-generated method stub
 
-	@Override
-	public T get() {
-		return container.get();
-	}
-
-	@Override
-	public List<STAttributeValue<T>> history() {
-		return container.history();
-	}
-
-	@Override
-	public void merge(ProtoAttribute snapshot) {
-		container.merge(snapshot);
 	}
 
 	@Override
 	public Oid oid() {
-		return container.oid();
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	@Override
 	public STDocument parent() {
-		return container.parent();
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	@Override
 	public void removeListener(Object listener) {
-		container.removeListener(listener);
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
-	public void set(T value) {
-		container.set(value);
+	public List<EphemeralAttributeValue> history() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	@Override
-	public ProtoAttribute snapshot(RelativeOid... oids) {
-		return container.snapshot(oids);
+	public Object get() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	@Override
-	public void source(Supplier<T> source) {
-		container.source(source);
+	public void set(Object value) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void source(Supplier<?> source) {
+		// TODO Auto-generated method stub
+
 	}
 
 	@Override
 	public long timestamp() {
-		return container.timestamp();
+		// TODO Auto-generated method stub
+		return 0;
 	}
 
 	@Override
-	protected STObject<ProtoAttribute> container() {
-		return container;
+	public void merge(ProtoSTObjectUpdate snapshot) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public ProtoSTObjectUpdate snapshot(Oid... oids) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }

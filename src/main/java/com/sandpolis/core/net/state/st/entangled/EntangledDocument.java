@@ -9,19 +9,29 @@
 //============================================================================//
 package com.sandpolis.core.net.state.st.entangled;
 
+import static com.sandpolis.core.net.stream.StreamStore.StreamStore;
+
 import java.util.Collection;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import com.sandpolis.core.instance.State.ProtoDocument;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
 import com.sandpolis.core.instance.state.oid.Oid;
-import com.sandpolis.core.instance.state.oid.RelativeOid;
+import com.sandpolis.core.instance.state.st.EphemeralAttribute.EphemeralAttributeValue;
 import com.sandpolis.core.instance.state.st.STAttribute;
 import com.sandpolis.core.instance.state.st.STDocument;
-import com.sandpolis.core.instance.state.st.STObject;
 import com.sandpolis.core.net.state.STCmd.STSyncStruct;
+import com.sandpolis.core.net.stream.InboundStreamAdapter;
+import com.sandpolis.core.net.stream.OutboundStreamAdapter;
+import com.sandpolis.core.net.stream.StreamSink;
+import com.sandpolis.core.net.stream.StreamSource;
 
-public class EntangledDocument extends EntangledObject<ProtoDocument> implements STDocument {
+public class EntangledDocument extends EntangledObject implements STDocument {
+
+	private static final Logger log = LoggerFactory.getLogger(EntangledDocument.class);
 
 	private STDocument container;
 
@@ -39,11 +49,11 @@ public class EntangledDocument extends EntangledObject<ProtoDocument> implements
 		switch (config.direction) {
 		case BIDIRECTIONAL:
 			startSource(config);
-			startSink(config, ProtoDocument.class);
+			startSink(config);
 			break;
 		case DOWNSTREAM:
 			if (config.initiator) {
-				startSink(config, ProtoDocument.class);
+				startSink(config);
 			} else {
 				startSource(config);
 			}
@@ -52,7 +62,7 @@ public class EntangledDocument extends EntangledObject<ProtoDocument> implements
 			if (config.initiator) {
 				startSource(config);
 			} else {
-				startSink(config, ProtoDocument.class);
+				startSink(config);
 			}
 			break;
 		default:
@@ -60,61 +70,124 @@ public class EntangledDocument extends EntangledObject<ProtoDocument> implements
 		}
 	}
 
-	// Begin boilerplate
+	private void startSink(STSyncStruct config) {
+		sink = new StreamSink<>() {
+
+			@Override
+			public void onNext(ProtoSTObjectUpdate item) {
+				if (log.isTraceEnabled()) {
+					log.trace("Merging snapshot: {}", item);
+				}
+				container.merge(item);
+			};
+		};
+
+		StreamStore.add(new InboundStreamAdapter<>(config.streamId, config.connection, ProtoSTObjectUpdate.class),
+				getSink());
+	}
+
+	private void startSource(STSyncStruct config) {
+		source = new StreamSource<>() {
+
+			@Override
+			public void start() {
+				container.parent().set(container.oid().last(), EntangledDocument.this);
+			}
+
+			@Override
+			public void stop() {
+				container.parent().set(container.oid().last(), container);
+			}
+		};
+
+		StreamStore.add(getSource(), new OutboundStreamAdapter<>(config.streamId, config.connection));
+		getSource().start();
+	}
+
+	@Override
+	protected synchronized void fireAttributeValueChangedEvent(STAttribute attribute, EphemeralAttributeValue oldValue,
+			EphemeralAttributeValue newValue) {
+		source.submit(attribute.snapshot());
+
+		super.fireAttributeValueChangedEvent(attribute, oldValue, newValue);
+	}
+
+	@Override
+	protected synchronized void fireDocumentAddedEvent(STDocument document, STDocument newDocument) {
+		source.submit(newDocument.snapshot());
+
+		super.fireDocumentAddedEvent(document, newDocument);
+	}
+
+	@Override
+	protected synchronized void fireDocumentRemovedEvent(STDocument document, STDocument oldDocument) {
+		source.submit(ProtoSTObjectUpdate.newBuilder().addRemoved(oldDocument.oid().toString()).build());
+
+		super.fireDocumentRemovedEvent(document, oldDocument);
+	}
 
 	@Override
 	public void addListener(Object listener) {
-		container.addListener(listener);
-	}
-
-	@Override
-	public Collection<STAttribute<?>> attributes() {
-		return container.attributes();
-	}
-
-	@Override
-	public Collection<STDocument> documents() {
-		return container.documents();
-	}
-
-	@Override
-	public void merge(ProtoDocument snapshot) {
-		container.merge(snapshot);
-	}
-
-	@Override
-	public Oid oid() {
-		return container.oid();
-	}
-
-	@Override
-	public STDocument parent() {
-		return container.parent();
-	}
-
-	@Override
-	public void removeListener(Object listener) {
-		container.removeListener(listener);
-	}
-
-	@Override
-	public ProtoDocument snapshot(RelativeOid... oids) {
-		return container.snapshot(oids);
-	}
-
-	@Override
-	protected STObject<ProtoDocument> container() {
-		return container;
-	}
-
-	@Override
-	public void remove(STAttribute<?> attribute) {
 		// TODO Auto-generated method stub
 
 	}
 
 	@Override
-	public void forEachAttribute(Consumer<STAttribute<?>> consumer) {
+	public Oid oid() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public STDocument parent() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void removeListener(Object listener) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public STAttribute attribute(String id) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public int attributeCount() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public Collection<STAttribute> attributes() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public STDocument document(String id) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public int documentCount() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	@Override
+	public Collection<STDocument> documents() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void remove(STAttribute attribute) {
 		// TODO Auto-generated method stub
 
 	}
@@ -132,45 +205,27 @@ public class EntangledDocument extends EntangledObject<ProtoDocument> implements
 	}
 
 	@Override
-	public int documentCount() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public int attributeCount() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public void forEachDocument(Consumer<STDocument> consumer) {
+	public void merge(ProtoSTObjectUpdate snapshot) {
 		// TODO Auto-generated method stub
 
 	}
 
 	@Override
-	public <E> STAttribute<E> attribute(RelativeOid<STAttribute<E>> oid) {
+	public ProtoSTObjectUpdate snapshot(Oid... oids) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public STDocument document(RelativeOid<STDocument> oid) {
+	public void set(String id, STAttribute attribute) {
 		// TODO Auto-generated method stub
-		return null;
+
 	}
 
 	@Override
-	public <E> STAttribute<E> getAttribute(RelativeOid<STAttribute<E>> oid) {
+	public void set(String id, STDocument document) {
 		// TODO Auto-generated method stub
-		return null;
-	}
 
-	@Override
-	public STDocument getDocument(RelativeOid<STDocument> oid) {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
 }

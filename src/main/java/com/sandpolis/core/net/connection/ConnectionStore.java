@@ -53,8 +53,8 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 	public Optional<Connection> getByCvid(int cvid) {
 
 		return values().stream().filter(connection -> {
-			var attr = connection.attribute(ConnectionOid.REMOTE_CVID);
-			return attr.isPresent() && attr.get() == cvid;
+			var attr = connection.get(ConnectionOid.REMOTE_CVID);
+			return attr.isPresent() && attr.asInt() == cvid;
 		}).findFirst();
 	}
 
