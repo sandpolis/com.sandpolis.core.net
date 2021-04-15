@@ -36,7 +36,7 @@ public class EntangledDocument extends EntangledObject implements STDocument {
 	private STDocument container;
 
 	public EntangledDocument(STDocument container, Consumer<STSyncStruct> configurator) {
-		super(container.parent(), container.oid());
+		super(container.parent(), container.oid().last());
 		this.container = Objects.requireNonNull(container);
 
 		if (container instanceof EntangledObject)

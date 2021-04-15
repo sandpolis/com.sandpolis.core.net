@@ -37,7 +37,7 @@ public class EntangledAttribute extends EntangledObject implements STAttribute {
 	private STAttribute container;
 
 	public EntangledAttribute(STAttribute container, Consumer<STSyncStruct> configurator) {
-		super(container.parent(), container.oid());
+		super(container.parent(), container.oid().last());
 		this.container = Objects.requireNonNull(container);
 
 		if (container instanceof EntangledObject)
@@ -79,7 +79,7 @@ public class EntangledAttribute extends EntangledObject implements STAttribute {
 				if (log.isTraceEnabled()) {
 					log.trace("Merging snapshot: {}", item);
 				}
-//				container.merge(item);
+				container.merge(item);
 			};
 		};
 

@@ -33,8 +33,8 @@ import com.sandpolis.core.net.stream.StreamSource;
  */
 public abstract class EntangledObject extends AbstractSTObject {
 
-	public EntangledObject(STDocument parent, Oid oid) {
-		super(parent, oid);
+	public EntangledObject(STDocument parent, String id) {
+		super(parent, id);
 	}
 
 	private static final Logger log = LoggerFactory.getLogger(EntangledObject.class);
