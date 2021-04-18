@@ -22,7 +22,7 @@ import com.sandpolis.core.net.Message.MSG;
 import com.sandpolis.core.net.channel.ChannelConstant;
 import com.sandpolis.core.net.msg.MsgCvid.RQ_Cvid;
 import com.sandpolis.core.net.msg.MsgCvid.RS_Cvid;
-import com.sandpolis.core.net.network.NetworkEvents.CvidChangedEvent;
+import com.sandpolis.core.net.network.NetworkStore.CvidChangedEvent;
 import com.sandpolis.core.net.util.MsgUtil;
 
 import io.netty.channel.Channel;
@@ -52,7 +52,7 @@ public class CvidRequestHandler extends AbstractCvidHandler {
 		if (rs != null && !rs.getServerUuid().isEmpty()) {
 
 			Core.setCvid(rs.getCvid());
-			NetworkStore.post(CvidChangedEvent::new, Core.cvid());
+			NetworkStore.post(new CvidChangedEvent(Core.cvid()));
 			sock.set(ConnectionOid.REMOTE_CVID, rs.getServerCvid());
 			sock.set(ConnectionOid.REMOTE_UUID, rs.getServerUuid());
 

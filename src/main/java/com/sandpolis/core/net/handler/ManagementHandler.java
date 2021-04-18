@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
 
 import com.sandpolis.core.net.channel.ChannelConstant;
 import com.sandpolis.core.net.connection.Connection;
-import com.sandpolis.core.net.connection.ConnectionEvents.SockEstablishedEvent;
-import com.sandpolis.core.net.connection.ConnectionEvents.SockLostEvent;
+import com.sandpolis.core.net.connection.ConnectionStore.SockEstablishedEvent;
+import com.sandpolis.core.net.connection.ConnectionStore.SockLostEvent;
 import com.sandpolis.core.net.cvid.AbstractCvidHandler.CvidHandshakeCompletionEvent;
 
 import io.netty.channel.ChannelHandler.Sharable;
@@ -57,7 +57,7 @@ public class ManagementHandler extends ChannelInboundHandlerAdapter {
 		}
 
 		ConnectionStore.removeValue(connection);
-		ConnectionStore.postAsync(SockLostEvent::new, connection);
+		ConnectionStore.postAsync(new SockLostEvent(connection));
 		ctx.close();
 	}
 
@@ -89,7 +89,7 @@ public class ManagementHandler extends ChannelInboundHandlerAdapter {
 
 				if (event.success) {
 					handshake_future.setSuccess(null);
-					ConnectionStore.postAsync(SockEstablishedEvent::new, connection);
+					ConnectionStore.postAsync(new SockEstablishedEvent(connection));
 				} else {
 					ConnectionStore.removeValue(connection);
 					handshake_future.cancel(true);

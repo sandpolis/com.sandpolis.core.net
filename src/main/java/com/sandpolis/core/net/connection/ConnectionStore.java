@@ -11,22 +11,18 @@ package com.sandpolis.core.net.connection;
 
 import static com.sandpolis.core.instance.thread.ThreadStore.ThreadStore;
 
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.eventbus.Subscribe;
-import com.sandpolis.core.instance.Group.AgentConfig.LoopConfig;
 import com.sandpolis.core.instance.state.ConnectionOid;
 import com.sandpolis.core.instance.state.st.STDocument;
 import com.sandpolis.core.instance.store.ConfigurableStore;
 import com.sandpolis.core.instance.store.STCollectionStore;
 import com.sandpolis.core.net.channel.ChannelStruct;
 import com.sandpolis.core.net.channel.client.ClientChannelInitializer;
-import com.sandpolis.core.net.connection.ConnectionEvents.SockLostEvent;
 import com.sandpolis.core.net.connection.ConnectionStore.ConnectionStoreConfig;
 import com.sandpolis.core.net.network.NetworkStore;
 import com.sandpolis.core.net.util.ChannelUtil;
@@ -44,18 +40,23 @@ import io.netty.channel.Channel;
 public final class ConnectionStore extends STCollectionStore<Connection>
 		implements ConfigurableStore<ConnectionStoreConfig> {
 
+	public static final class ConnectionStoreConfig {
+
+		public STDocument collection;
+	}
+
+	public static final record SockLostEvent(Connection connection) {
+	}
+
+	public static final record SockEstablishedEvent(Connection connection) {
+	}
+
+	public static final ConnectionStore ConnectionStore = new ConnectionStore();
+
 	public static final Logger log = LoggerFactory.getLogger(ConnectionStore.class);
 
 	public ConnectionStore() {
 		super(log, Connection::new);
-	}
-
-	public Optional<Connection> getByCvid(int cvid) {
-
-		return values().stream().filter(connection -> {
-			var attr = connection.get(ConnectionOid.REMOTE_CVID);
-			return attr.isPresent() && attr.asInt() == cvid;
-		}).findFirst();
 	}
 
 	/**
@@ -71,6 +72,16 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 			bootstrap.group(ThreadStore.get("net.connection.outgoing"));
 
 		return new ConnectionFuture(bootstrap.connect());
+	}
+
+	/**
+	 * Create and start a new {@link ConnectionLoop} with the given configuration.
+	 * 
+	 * @param configurator The loop configuration
+	 * @return A new connection loop
+	 */
+	public ConnectionLoop connect(Consumer<ConnectionLoop.ConfigStruct> configurator) {
+		return new ConnectionLoop(configurator).start();
 	}
 
 	/**
@@ -105,14 +116,19 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 				.handler(new ClientChannelInitializer(configurator)));
 	}
 
-	/**
-	 * Create and start a new {@link ConnectionLoop} with the given configuration.
-	 * 
-	 * @param configurator The loop configuration
-	 * @return A new connection loop
-	 */
-	public ConnectionLoop connect(Consumer<ConnectionLoop.ConfigStruct> configurator) {
-		return new ConnectionLoop(configurator).start();
+	public Connection create(Channel channel) {
+		var connection = create(c -> {
+		});
+		connection.setChannel(channel);
+		return connection;
+	}
+
+	public Optional<Connection> getByCvid(int cvid) {
+
+		return values().stream().filter(connection -> {
+			var attr = connection.get(ConnectionOid.REMOTE_CVID);
+			return attr.isPresent() && attr.asInt() == cvid;
+		}).findFirst();
 	}
 
 	@Override
@@ -124,18 +140,4 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 
 		register(this);
 	}
-
-	public Connection create(Channel channel) {
-		var connection = create(c -> {
-		});
-		connection.setChannel(channel);
-		return connection;
-	}
-
-	public static final class ConnectionStoreConfig {
-
-		public STDocument collection;
-	}
-
-	public static final ConnectionStore ConnectionStore = new ConnectionStore();
 }

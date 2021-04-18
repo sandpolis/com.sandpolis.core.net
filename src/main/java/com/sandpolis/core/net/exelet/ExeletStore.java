@@ -25,8 +25,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.eventbus.Subscribe;
 import com.sandpolis.core.foundation.ConfigStruct;
-import com.sandpolis.core.instance.plugin.PluginEvents.PluginLoadedEvent;
-import com.sandpolis.core.instance.plugin.PluginEvents.PluginUnloadedEvent;
+import com.sandpolis.core.instance.plugin.PluginStore.PluginLoadedEvent;
+import com.sandpolis.core.instance.plugin.PluginStore.PluginUnloadedEvent;
 import com.sandpolis.core.instance.store.ConfigurableStore;
 import com.sandpolis.core.instance.store.StoreBase;
 import com.sandpolis.core.net.exelet.ExeletStore.ExeletStoreConfig;
@@ -82,13 +82,13 @@ public class ExeletStore extends StoreBase implements ConfigurableStore<ExeletSt
 
 	@Subscribe
 	void pluginLoaded(PluginLoadedEvent event) {
-		event.get().getExtensions(ExeletProvider.class).map(ExeletProvider::getExelets).flatMap(Arrays::stream)
+		event.plugin().getExtensions(ExeletProvider.class).map(ExeletProvider::getExelets).flatMap(Arrays::stream)
 				.forEach(this::register);
 	}
 
 	@Subscribe
 	void pluginUnloaded(PluginUnloadedEvent event) {
-		event.get().getExtensions(ExeletProvider.class).map(ExeletProvider::getExelets).flatMap(Arrays::stream)
+		event.plugin().getExtensions(ExeletProvider.class).map(ExeletProvider::getExelets).flatMap(Arrays::stream)
 				.forEach(this::unregister);
 	}
 

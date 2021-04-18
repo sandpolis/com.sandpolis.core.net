@@ -26,7 +26,7 @@ import com.sandpolis.core.instance.store.ConfigurableStore;
 import com.sandpolis.core.instance.store.MetadataStore;
 import com.sandpolis.core.instance.store.StoreBase;
 import com.sandpolis.core.instance.store.StoreMetadata;
-import com.sandpolis.core.net.connection.ConnectionEvents.SockLostEvent;
+import com.sandpolis.core.net.connection.ConnectionStore.SockLostEvent;
 import com.sandpolis.core.net.stream.StreamStore.StreamStoreConfig;
 import com.sandpolis.core.net.stream.StreamStore.StreamStoreMetadata;
 
@@ -177,8 +177,8 @@ public final class StreamStore extends StoreBase
 
 	@Subscribe
 	private synchronized void onSockLost(SockLostEvent event) {
-		inbound.removeIf(adapter -> adapter.getSock().equals(event.get()));
-		outbound.removeIf(adapter -> adapter.getSock().equals(event.get()));
+		inbound.removeIf(adapter -> adapter.getSock().equals(event.connection()));
+		outbound.removeIf(adapter -> adapter.getSock().equals(event.connection()));
 
 		// TODO find dependent streams to also close
 	}

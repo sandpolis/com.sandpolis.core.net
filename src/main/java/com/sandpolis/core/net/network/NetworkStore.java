@@ -32,13 +32,10 @@ import com.sandpolis.core.instance.store.ConfigurableStore;
 import com.sandpolis.core.instance.store.StoreBase;
 import com.sandpolis.core.net.Message.MSG;
 import com.sandpolis.core.net.config.CfgNet;
-import com.sandpolis.core.net.connection.ConnectionEvents.SockEstablishedEvent;
-import com.sandpolis.core.net.connection.ConnectionEvents.SockLostEvent;
+import com.sandpolis.core.net.connection.ConnectionStore.SockEstablishedEvent;
+import com.sandpolis.core.net.connection.ConnectionStore.SockLostEvent;
 import com.sandpolis.core.net.connection.ConnectionStore;
 import com.sandpolis.core.net.message.MessageFuture;
-import com.sandpolis.core.net.network.NetworkEvents.CvidChangedEvent;
-import com.sandpolis.core.net.network.NetworkEvents.ServerEstablishedEvent;
-import com.sandpolis.core.net.network.NetworkEvents.ServerLostEvent;
 import com.sandpolis.core.net.network.NetworkStore.NetworkStoreConfig;
 import com.sandpolis.core.net.util.CvidUtil;
 
@@ -55,11 +52,25 @@ import com.sandpolis.core.net.util.CvidUtil;
  */
 public final class NetworkStore extends StoreBase implements ConfigurableStore<NetworkStoreConfig> {
 
+	@ConfigStruct
+	public static final class NetworkStoreConfig {
+
+		public int cvid;
+		public int preferredServer;
+	}
+
+	public static final record ServerLostEvent(int cvid) {
+	}
+
+	public static final record ServerEstablishedEvent(int cvid) {
+	}
+
+	public static final record CvidChangedEvent(int cvid) {
+	}
+
 	private static final Logger log = LoggerFactory.getLogger(NetworkStore.class);
 
-	public NetworkStore() {
-		super(log);
-	}
+	public static final NetworkStore NetworkStore = new NetworkStore();
 
 	/**
 	 * The undirected graph which describes the visible connections between nodes on
@@ -72,146 +83,8 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 	 */
 	private int preferredServer;
 
-	@Subscribe
-	private synchronized void onSockLost(SockLostEvent event) {
-		event.ifPresent(connection -> {
-			if (network.nodes().contains(Core.cvid())
-					&& network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID).asInt()))
-				network.edgeConnecting(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID).asInt())
-						.ifPresent(network::removeEdge);
-
-			// Remove nodes that are now disconnected
-			network.nodes().stream().filter(cvid -> Core.cvid() != cvid).filter(cvid -> network.degree(cvid) == 0)
-					.collect(Collectors.toUnmodifiableList()).forEach(network::removeNode);
-
-			if (Core.INSTANCE != InstanceType.SERVER) {
-				// Check whether a server is still reachable after losing the connection
-				for (var node : network.nodes()) {
-					if (CvidUtil.extractInstance(node) == InstanceType.SERVER) {
-						if (network.edgesConnecting(node, connection.get(ConnectionOid.REMOTE_CVID).asInt())
-								.size() > 0) {
-							return;
-						}
-					}
-				}
-
-				// No servers are reachable
-				post(ServerLostEvent::new, connection.get(ConnectionOid.REMOTE_CVID).asInt());
-			}
-		});
-	}
-
-	@Subscribe
-	private synchronized void onSockEstablished(SockEstablishedEvent event) {
-		event.ifPresent(connection -> {
-
-			// Add node if not already present
-			if (!network.nodes().contains(connection.get(ConnectionOid.REMOTE_CVID).asInt())) {
-				network.addNode(connection.get(ConnectionOid.REMOTE_CVID).asInt());
-			}
-
-			// Add edge representing the new connection
-			network.addEdge(Core.cvid(), connection.get(ConnectionOid.REMOTE_CVID).asInt(),
-					new NetworkConnection(null));
-
-			if (Core.INSTANCE != InstanceType.SERVER) {
-				// See if that was the first connection to a server
-				if (connection.get(ConnectionOid.REMOTE_INSTANCE).asInstanceType() == InstanceType.SERVER) {
-					// TODO
-					post(ServerEstablishedEvent::new, connection.get(ConnectionOid.REMOTE_CVID).asInt());
-				}
-			}
-		});
-	}
-
-	@Subscribe
-	private synchronized void onCvidChanged(CvidChangedEvent event) {
-		network.addNode(event.get());
-	}
-
-	/**
-	 * Get an immutable representation of the network.
-	 *
-	 * @return The underlying network graph of the store
-	 */
-	public Network<Integer, NetworkConnection> getNetwork() {
-		return network;
-	}
-
-	/**
-	 * Explicitly set the preferred server CVID.
-	 *
-	 * @param cvid The new preferred server
-	 */
-	public void setPreferredServer(int cvid) {
-		preferredServer = cvid;
-	}
-
-	public synchronized Optional<Integer> getPreferredServer() {
-
-		if (!network.nodes().contains(preferredServer)) {
-			// Choose a server at random
-			var newServer = network.nodes().stream()
-					.filter(cvid -> CvidUtil.extractInstance(cvid) == InstanceType.SERVER).findAny();
-			if (newServer.isPresent()) {
-				preferredServer = newServer.get();
-				return newServer;
-			} else {
-				return Optional.empty();
-			}
-		}
-
-		return Optional.of(preferredServer);
-	}
-
-	/**
-	 * Update the network tree with the given delta. If the result of an operation
-	 * is already present in the network (e.g. a node is already present and the
-	 * operation is NodeAdd), then the operation is ignored.
-	 *
-	 * @param delta The delta event that describes the change
-	 */
-//	public synchronized void updateNetwork(EV_NetworkDelta delta) {
-//		for (NodeAdded na : delta.getNodeAddedList())
-//			network.addNode(na.getCvid());
-//		for (NodeRemoved nr : delta.getNodeRemovedList())
-//			network.removeNode(nr.getCvid());
-//
-//		for (LinkAdded la : delta.getLinkAddedList())
-//			network.addEdge(la.getCvid1(), la.getCvid2(), new SockLink(la.getLink()));
-//		for (LinkRemoved lr : delta.getLinkRemovedList())
-//			network.removeEdge(network.edgeConnectingOrNull(lr.getCvid1(), lr.getCvid2()));
-//	}
-
-	/**
-	 * Get the CVIDs of every node directly connected to the given CVID.
-	 *
-	 * @param cvid The CVID
-	 * @return A set of all directly connected CVIDs
-	 */
-	public synchronized Set<Integer> getDirect(int cvid) {
-		return network.adjacentNodes(cvid);
-	}
-
-	/**
-	 * Get all links involving the given CVID.
-	 *
-	 * @param cvid The CVID
-	 * @return A set of all links involving the CVID
-	 */
-	public synchronized Set<NetworkConnection> getDirectLinks(int cvid) {
-		return network.incidentEdges(cvid);
-	}
-
-	/**
-	 * Get all links involving both given CVIDs.
-	 *
-	 * @param cvid1 The first CVID
-	 * @param cvid2 The second CVID
-	 * @return A set of all links between the two CVIDs
-	 */
-	public synchronized Set<NetworkConnection> getDirectLinks(int cvid1, int cvid2) {
-		return network.edgesConnecting(cvid1, cvid2);
+	public NetworkStore() {
+		super(log);
 	}
 
 	/**
@@ -236,6 +109,182 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 	 */
 	public int deliver(MSG.Builder message) {
 		return deliver(message.build());
+	}
+
+	/**
+	 * Get the CVIDs of every node directly connected to the given CVID.
+	 *
+	 * @param cvid The CVID
+	 * @return A set of all directly connected CVIDs
+	 */
+	public synchronized Set<Integer> getDirect(int cvid) {
+		return network.adjacentNodes(cvid);
+	}
+
+	/**
+	 * Get all links involving the given CVID.
+	 *
+	 * @param cvid The CVID
+	 * @return A set of all links involving the CVID
+	 */
+	public synchronized Set<NetworkConnection> getDirectLinks(int cvid) {
+		return network.incidentEdges(cvid);
+	}
+
+	/**
+	 * Update the network tree with the given delta. If the result of an operation
+	 * is already present in the network (e.g. a node is already present and the
+	 * operation is NodeAdd), then the operation is ignored.
+	 *
+	 * @param delta The delta event that describes the change
+	 */
+//	public synchronized void updateNetwork(EV_NetworkDelta delta) {
+//		for (NodeAdded na : delta.getNodeAddedList())
+//			network.addNode(na.getCvid());
+//		for (NodeRemoved nr : delta.getNodeRemovedList())
+//			network.removeNode(nr.getCvid());
+//
+//		for (LinkAdded la : delta.getLinkAddedList())
+//			network.addEdge(la.getCvid1(), la.getCvid2(), new SockLink(la.getLink()));
+//		for (LinkRemoved lr : delta.getLinkRemovedList())
+//			network.removeEdge(network.edgeConnectingOrNull(lr.getCvid1(), lr.getCvid2()));
+//	}
+
+	/**
+	 * Get all links involving both given CVIDs.
+	 *
+	 * @param cvid1 The first CVID
+	 * @param cvid2 The second CVID
+	 * @return A set of all links between the two CVIDs
+	 */
+	public synchronized Set<NetworkConnection> getDirectLinks(int cvid1, int cvid2) {
+		return network.edgesConnecting(cvid1, cvid2);
+	}
+
+	/**
+	 * Get an immutable representation of the network.
+	 *
+	 * @return The underlying network graph of the store
+	 */
+	public Network<Integer, NetworkConnection> getNetwork() {
+		return network;
+	}
+
+	public synchronized Optional<Integer> getPreferredServer() {
+
+		if (!network.nodes().contains(preferredServer)) {
+			// Choose a server at random
+			var newServer = network.nodes().stream()
+					.filter(cvid -> CvidUtil.extractInstance(cvid) == InstanceType.SERVER).findAny();
+			if (newServer.isPresent()) {
+				preferredServer = newServer.get();
+				return newServer;
+			} else {
+				return Optional.empty();
+			}
+		}
+
+		return Optional.of(preferredServer);
+	}
+
+	@Override
+	public void init(Consumer<NetworkStoreConfig> configurator) {
+		var config = new NetworkStoreConfig();
+		configurator.accept(config);
+
+		preferredServer = config.preferredServer;
+		network = NetworkBuilder.undirected().allowsSelfLoops(false).allowsParallelEdges(true).build();
+
+		if (config.cvid != 0)
+			network.addNode(config.cvid);
+
+		ConnectionStore.register(this);
+		post(new CvidChangedEvent(config.cvid));
+	}
+
+	@Subscribe
+	private synchronized void onCvidChanged(CvidChangedEvent event) {
+		network.addNode(event.cvid());
+	}
+
+	@Subscribe
+	private synchronized void onSockEstablished(SockEstablishedEvent event) {
+
+		// Add node if not already present
+		if (!network.nodes().contains(event.connection().get(ConnectionOid.REMOTE_CVID).asInt())) {
+			network.addNode(event.connection().get(ConnectionOid.REMOTE_CVID).asInt());
+		}
+
+		// Add edge representing the new connection
+		network.addEdge(Core.cvid(), event.connection().get(ConnectionOid.REMOTE_CVID).asInt(),
+				new NetworkConnection(null));
+
+		if (Core.INSTANCE != InstanceType.SERVER) {
+			// See if that was the first connection to a server
+			if (event.connection().get(ConnectionOid.REMOTE_INSTANCE).asInstanceType() == InstanceType.SERVER) {
+				// TODO
+				post(new ServerEstablishedEvent(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()));
+			}
+		}
+	}
+
+	@Subscribe
+	private synchronized void onSockLost(SockLostEvent event) {
+		if (network.nodes().contains(Core.cvid())
+				&& network.nodes().contains(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()))
+			network.edgeConnecting(Core.cvid(), event.connection().get(ConnectionOid.REMOTE_CVID).asInt())
+					.ifPresent(network::removeEdge);
+
+		// Remove nodes that are now disconnected
+		network.nodes().stream().filter(cvid -> Core.cvid() != cvid).filter(cvid -> network.degree(cvid) == 0)
+				.collect(Collectors.toUnmodifiableList()).forEach(network::removeNode);
+
+		if (Core.INSTANCE != InstanceType.SERVER) {
+			// Check whether a server is still reachable after losing the connection
+			for (var node : network.nodes()) {
+				if (CvidUtil.extractInstance(node) == InstanceType.SERVER) {
+					if (network.edgesConnecting(node, event.connection().get(ConnectionOid.REMOTE_CVID).asInt())
+							.size() > 0) {
+						return;
+					}
+				}
+			}
+
+			// No servers are reachable
+			post(new ServerLostEvent(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()));
+		}
+	}
+
+	/**
+	 * Receive a message from the given source.
+	 *
+	 * @param cvid The message source
+	 * @param id   The response ID
+	 * @return A MessageFuture
+	 */
+	public MessageFuture receive(int cvid, int id) {
+		var sock = ConnectionStore.getByCvid(cvid);
+		if (sock.isEmpty())
+			return null;
+
+		return sock.get().read(id);
+	}
+
+	/**
+	 * Receive a message from the given source.
+	 *
+	 * @param cvid    The message source
+	 * @param id      The message ID
+	 * @param timeout The message timeout
+	 * @param unit    The timeout unit
+	 * @return A MessageFuture
+	 */
+	public MessageFuture receive(int cvid, int id, int timeout, TimeUnit unit) {
+		var sock = ConnectionStore.getByCvid(cvid);
+		if (sock.isEmpty())
+			return null;
+
+		return sock.get().read(id, timeout, unit);
 	}
 
 	/**
@@ -294,58 +343,11 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 	}
 
 	/**
-	 * Receive a message from the given source.
+	 * Explicitly set the preferred server CVID.
 	 *
-	 * @param cvid The message source
-	 * @param id   The response ID
-	 * @return A MessageFuture
+	 * @param cvid The new preferred server
 	 */
-	public MessageFuture receive(int cvid, int id) {
-		var sock = ConnectionStore.getByCvid(cvid);
-		if (sock.isEmpty())
-			return null;
-
-		return sock.get().read(id);
+	public void setPreferredServer(int cvid) {
+		preferredServer = cvid;
 	}
-
-	/**
-	 * Receive a message from the given source.
-	 *
-	 * @param cvid    The message source
-	 * @param id      The message ID
-	 * @param timeout The message timeout
-	 * @param unit    The timeout unit
-	 * @return A MessageFuture
-	 */
-	public MessageFuture receive(int cvid, int id, int timeout, TimeUnit unit) {
-		var sock = ConnectionStore.getByCvid(cvid);
-		if (sock.isEmpty())
-			return null;
-
-		return sock.get().read(id, timeout, unit);
-	}
-
-	@Override
-	public void init(Consumer<NetworkStoreConfig> configurator) {
-		var config = new NetworkStoreConfig();
-		configurator.accept(config);
-
-		preferredServer = config.preferredServer;
-		network = NetworkBuilder.undirected().allowsSelfLoops(false).allowsParallelEdges(true).build();
-
-		if (config.cvid != 0)
-			network.addNode(config.cvid);
-
-		ConnectionStore.register(this);
-		post(CvidChangedEvent::new, config.cvid);
-	}
-
-	@ConfigStruct
-	public static final class NetworkStoreConfig {
-
-		public int preferredServer;
-		public int cvid;
-	}
-
-	public static final NetworkStore NetworkStore = new NetworkStore();
 }
