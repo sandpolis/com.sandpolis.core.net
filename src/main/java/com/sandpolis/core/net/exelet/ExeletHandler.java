@@ -62,7 +62,7 @@ public final class ExeletHandler extends SimpleChannelInboundHandler<MSG> {
 					break;
 				default:
 					throw new RuntimeException("Cannot create ExeletHandler with remote instance: "
-							+ sock.get(ConnectionOid.REMOTE_INSTANCE).toString());
+							+ sock.get(ConnectionOid.REMOTE_INSTANCE).asString());
 				}
 			}
 		}

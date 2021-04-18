@@ -97,8 +97,8 @@ class CvidRequestHandlerTest {
 		await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> event != null);
 		assertTrue(event.success);
 
-		assertEquals(testCvid, client.attr(ChannelConstant.SOCK).get().get(ConnectionOid.REMOTE_CVID));
-		assertEquals(testUuid, client.attr(ChannelConstant.SOCK).get().get(ConnectionOid.REMOTE_UUID));
+		assertEquals(testCvid, client.attr(ChannelConstant.SOCK).get().get(ConnectionOid.REMOTE_CVID).asInt());
+		assertEquals(testUuid, client.attr(ChannelConstant.SOCK).get().get(ConnectionOid.REMOTE_UUID).asInt());
 		assertNull(client.pipeline().get(CvidRequestHandler.class), "Handler autoremove failed");
 	}
 
