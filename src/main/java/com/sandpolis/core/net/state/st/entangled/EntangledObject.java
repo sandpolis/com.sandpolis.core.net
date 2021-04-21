@@ -9,13 +9,21 @@
 //============================================================================//
 package com.sandpolis.core.net.state.st.entangled;
 
+import static com.sandpolis.core.net.stream.StreamStore.StreamStore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.eventbus.Subscribe;
 import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
 import com.sandpolis.core.instance.state.oid.Oid;
 import com.sandpolis.core.instance.state.st.AbstractSTObject;
+import com.sandpolis.core.instance.state.st.STAttribute;
 import com.sandpolis.core.instance.state.st.STDocument;
+import com.sandpolis.core.instance.state.st.STObject;
+import com.sandpolis.core.net.state.STCmd.STSyncStruct;
+import com.sandpolis.core.net.stream.InboundStreamAdapter;
+import com.sandpolis.core.net.stream.OutboundStreamAdapter;
 import com.sandpolis.core.net.stream.Stream;
 import com.sandpolis.core.net.stream.StreamSink;
 import com.sandpolis.core.net.stream.StreamSource;
@@ -43,6 +51,8 @@ public abstract class EntangledObject extends AbstractSTObject {
 
 	protected StreamSource<ProtoSTObjectUpdate> source;
 
+	protected STObject container;
+
 	public StreamSink<ProtoSTObjectUpdate> getSink() {
 		return sink;
 	}
@@ -51,4 +61,86 @@ public abstract class EntangledObject extends AbstractSTObject {
 		return source;
 	}
 
+	protected void startSink(STSyncStruct config) {
+		sink = new StreamSink<>() {
+
+			@Override
+			public void onNext(ProtoSTObjectUpdate item) {
+				if (log.isTraceEnabled()) {
+					log.trace("Merging snapshot: {}", item);
+				}
+				container.merge(item);
+			};
+		};
+
+		StreamStore.add(new InboundStreamAdapter<>(config.streamId, config.connection, ProtoSTObjectUpdate.class),
+				sink);
+	}
+
+	protected void startSource(STSyncStruct config) {
+		source = new StreamSource<>() {
+
+			@Override
+			public void start() {
+				container.addListener(EntangledObject.this);
+			}
+
+			@Override
+			public void stop() {
+				container.removeListener(EntangledObject.this);
+			}
+		};
+
+		StreamStore.add(source, new OutboundStreamAdapter<>(config.streamId, config.connection));
+
+		// Send initial state
+		source.submit(container.snapshot());
+
+		source.start();
+	}
+
+	@Override
+	public Oid oid() {
+		return container.oid();
+	}
+
+	@Override
+	public STDocument parent() {
+		return container.parent();
+	}
+
+	@Override
+	public void merge(ProtoSTObjectUpdate snapshot) {
+		container.merge(snapshot);
+	}
+
+	@Override
+	public ProtoSTObjectUpdate snapshot(Oid... oids) {
+		return container.snapshot(oids);
+	}
+
+	@Override
+	public void addListener(Object listener) {
+		container.addListener(listener);
+	}
+
+	@Override
+	public void removeListener(Object listener) {
+		container.removeListener(listener);
+	}
+
+	@Subscribe
+	void handle(STAttribute.ChangeEvent event) {
+		source.submit(event.attribute().snapshot());
+	}
+
+	@Subscribe
+	void handle(STDocument.DocumentAddedEvent event) {
+		source.submit(event.newDocument().snapshot());
+	}
+
+	@Subscribe
+	void handle(STDocument.DocumentRemovedEvent event) {
+		source.submit(ProtoSTObjectUpdate.newBuilder().addRemoved(event.oldDocument().oid().toString()).build());
+	}
 }

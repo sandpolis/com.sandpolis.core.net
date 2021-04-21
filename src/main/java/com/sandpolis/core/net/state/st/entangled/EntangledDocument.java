@@ -9,8 +9,6 @@
 //============================================================================//
 package com.sandpolis.core.net.state.st.entangled;
 
-import static com.sandpolis.core.net.stream.StreamStore.StreamStore;
-
 import java.util.Collection;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -18,22 +16,13 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
-import com.sandpolis.core.instance.state.oid.Oid;
-import com.sandpolis.core.instance.state.st.EphemeralAttribute.EphemeralAttributeValue;
 import com.sandpolis.core.instance.state.st.STAttribute;
 import com.sandpolis.core.instance.state.st.STDocument;
 import com.sandpolis.core.net.state.STCmd.STSyncStruct;
-import com.sandpolis.core.net.stream.InboundStreamAdapter;
-import com.sandpolis.core.net.stream.OutboundStreamAdapter;
-import com.sandpolis.core.net.stream.StreamSink;
-import com.sandpolis.core.net.stream.StreamSource;
 
 public class EntangledDocument extends EntangledObject implements STDocument {
 
 	private static final Logger log = LoggerFactory.getLogger(EntangledDocument.class);
-
-	private STDocument container;
 
 	public EntangledDocument(STDocument container, Consumer<STSyncStruct> configurator) {
 		super(container.parent(), container.oid().last());
@@ -70,162 +59,58 @@ public class EntangledDocument extends EntangledObject implements STDocument {
 		}
 	}
 
-	private void startSink(STSyncStruct config) {
-		sink = new StreamSink<>() {
-
-			@Override
-			public void onNext(ProtoSTObjectUpdate item) {
-				if (log.isTraceEnabled()) {
-					log.trace("Merging snapshot: {}", item);
-				}
-				container.merge(item);
-			};
-		};
-
-		StreamStore.add(new InboundStreamAdapter<>(config.streamId, config.connection, ProtoSTObjectUpdate.class),
-				getSink());
-	}
-
-	private void startSource(STSyncStruct config) {
-		source = new StreamSource<>() {
-
-			@Override
-			public void start() {
-				container.parent().set(container.oid().last(), EntangledDocument.this);
-			}
-
-			@Override
-			public void stop() {
-				container.parent().set(container.oid().last(), container);
-			}
-		};
-
-		StreamStore.add(getSource(), new OutboundStreamAdapter<>(config.streamId, config.connection));
-		getSource().start();
-	}
-
-	@Override
-	protected synchronized void fireAttributeValueChangedEvent(STAttribute attribute, EphemeralAttributeValue oldValue,
-			EphemeralAttributeValue newValue) {
-		source.submit(attribute.snapshot());
-
-		super.fireAttributeValueChangedEvent(attribute, oldValue, newValue);
-	}
-
-	@Override
-	protected synchronized void fireDocumentAddedEvent(STDocument document, STDocument newDocument) {
-		source.submit(newDocument.snapshot());
-
-		super.fireDocumentAddedEvent(document, newDocument);
-	}
-
-	@Override
-	protected synchronized void fireDocumentRemovedEvent(STDocument document, STDocument oldDocument) {
-		source.submit(ProtoSTObjectUpdate.newBuilder().addRemoved(oldDocument.oid().toString()).build());
-
-		super.fireDocumentRemovedEvent(document, oldDocument);
-	}
-
-	@Override
-	public void addListener(Object listener) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public Oid oid() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public STDocument parent() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public void removeListener(Object listener) {
-		// TODO Auto-generated method stub
-
-	}
-
 	@Override
 	public STAttribute attribute(String id) {
-		// TODO Auto-generated method stub
-		return null;
+		return ((STDocument) container).attribute(id);
 	}
 
 	@Override
 	public int attributeCount() {
-		// TODO Auto-generated method stub
-		return 0;
+		return ((STDocument) container).attributeCount();
 	}
 
 	@Override
 	public Collection<STAttribute> attributes() {
-		// TODO Auto-generated method stub
-		return null;
+		return ((STDocument) container).attributes();
 	}
 
 	@Override
 	public STDocument document(String id) {
-		// TODO Auto-generated method stub
-		return null;
+		return ((STDocument) container).document(id);
 	}
 
 	@Override
 	public int documentCount() {
-		// TODO Auto-generated method stub
-		return 0;
+		return ((STDocument) container).documentCount();
 	}
 
 	@Override
 	public Collection<STDocument> documents() {
-		// TODO Auto-generated method stub
-		return null;
+		return ((STDocument) container).documents();
 	}
 
 	@Override
 	public void remove(STAttribute attribute) {
-		// TODO Auto-generated method stub
-
+		((STDocument) container).remove(attribute);
 	}
 
 	@Override
 	public void remove(STDocument document) {
-		// TODO Auto-generated method stub
-
+		((STDocument) container).remove(document);
 	}
 
 	@Override
 	public void remove(String id) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public void merge(ProtoSTObjectUpdate snapshot) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public ProtoSTObjectUpdate snapshot(Oid... oids) {
-		// TODO Auto-generated method stub
-		return null;
+		((STDocument) container).remove(id);
 	}
 
 	@Override
 	public void set(String id, STAttribute attribute) {
-		// TODO Auto-generated method stub
-
+		((STDocument) container).set(id, attribute);
 	}
 
 	@Override
 	public void set(String id, STDocument document) {
-		// TODO Auto-generated method stub
-
+		((STDocument) container).set(id, document);
 	}
-
 }

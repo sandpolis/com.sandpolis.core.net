@@ -13,6 +13,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.concurrent.SubmissionPublisher;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.protobuf.MessageLite;
 import com.sandpolis.core.net.Message.MSG;
 import com.sandpolis.core.net.channel.HandlerKey;
@@ -25,6 +28,8 @@ import io.netty.channel.ChannelInboundHandler;
 public class InboundStreamAdapter<E extends MessageLite> extends SubmissionPublisher<E>
 		implements StreamEndpoint, ChannelInboundHandler {
 
+	private static final Logger log = LoggerFactory.getLogger(InboundStreamAdapter.class);
+
 	private int id;
 	private Connection sock;
 	private Class<E> eventType;
@@ -34,6 +39,7 @@ public class InboundStreamAdapter<E extends MessageLite> extends SubmissionPubli
 		this.sock = checkNotNull(sock);
 		this.eventType = eventType;
 
+		log.debug("Engaging stream: {}", id);
 		sock.engage(HandlerKey.STREAM, this);
 	}
 
@@ -45,6 +51,7 @@ public class InboundStreamAdapter<E extends MessageLite> extends SubmissionPubli
 	public void close() {
 		super.close();
 
+		log.debug("Disengaging stream: {}", id);
 		sock.disengage(this);
 	}
 
@@ -52,6 +59,7 @@ public class InboundStreamAdapter<E extends MessageLite> extends SubmissionPubli
 	public void closeExceptionally(Throwable error) {
 		super.closeExceptionally(error);
 
+		log.debug("Disengaging stream: {}", id);
 		sock.disengage(this);
 	}
 

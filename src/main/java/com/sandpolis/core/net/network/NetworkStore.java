@@ -210,20 +210,22 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 	@Subscribe
 	private synchronized void onSockEstablished(SockEstablishedEvent event) {
 
+		var remote_cvid = event.connection().get(ConnectionOid.REMOTE_CVID).asInt();
+
 		// Add node if not already present
-		if (!network.nodes().contains(event.connection().get(ConnectionOid.REMOTE_CVID).asInt())) {
-			network.addNode(event.connection().get(ConnectionOid.REMOTE_CVID).asInt());
+		if (!network.nodes().contains(remote_cvid)) {
+			log.debug("Adding node: {} ({})", remote_cvid, CvidUtil.extractInstance(remote_cvid));
+			network.addNode(remote_cvid);
 		}
 
 		// Add edge representing the new connection
-		network.addEdge(Core.cvid(), event.connection().get(ConnectionOid.REMOTE_CVID).asInt(),
-				new NetworkConnection(null));
+		network.addEdge(Core.cvid(), remote_cvid, new NetworkConnection(null));
 
 		if (Core.INSTANCE != InstanceType.SERVER) {
 			// See if that was the first connection to a server
 			if (event.connection().get(ConnectionOid.REMOTE_INSTANCE).asInstanceType() == InstanceType.SERVER) {
 				// TODO
-				post(new ServerEstablishedEvent(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()));
+				postAsync(new ServerEstablishedEvent(remote_cvid));
 			}
 		}
 	}
@@ -251,7 +253,7 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 			}
 
 			// No servers are reachable
-			post(new ServerLostEvent(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()));
+			postAsync(new ServerLostEvent(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()));
 		}
 	}
 

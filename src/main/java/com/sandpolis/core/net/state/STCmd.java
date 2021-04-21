@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import com.sandpolis.core.foundation.ConfigStruct;
 import com.sandpolis.core.foundation.Result.Outcome;
 import com.sandpolis.core.foundation.util.IDUtil;
+import com.sandpolis.core.foundation.util.RandUtil;
 import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
 import com.sandpolis.core.instance.state.oid.Oid;
 import com.sandpolis.core.instance.state.st.EphemeralDocument;
@@ -93,9 +94,12 @@ public class STCmd extends Cmdlet<STCmd> {
 	}
 
 	public CompletionStage<EntangledDocument> sync(Oid oid) {
+		int id = RandUtil.nextInt();
+
 		return sync(oid, config -> {
 			config.connection = target;
 			config.initiator = true;
+			config.streamId = id;
 		});
 	}
 
@@ -116,8 +120,6 @@ public class STCmd extends Cmdlet<STCmd> {
 			if (!oid.isAncestorOf(o))
 				throw new IllegalArgumentException();
 
-		log.debug("Sending sync command for OID: {}", oid);
-
 		var rq = RQ_STSync.newBuilder() //
 				.setStreamId(config.streamId) //
 				.setOid(oid.toString()) //
@@ -128,6 +130,7 @@ public class STCmd extends Cmdlet<STCmd> {
 
 		var document = new EntangledDocument(STStore.get(oid), configurator);
 
+		log.debug("Sending sync command for OID: {}", oid);
 		return request(Outcome.class, rq).thenApply(rs -> {
 			return document;
 		});
