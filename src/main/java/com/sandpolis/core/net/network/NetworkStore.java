@@ -28,13 +28,15 @@ import com.sandpolis.core.foundation.ConfigStruct;
 import com.sandpolis.core.instance.Core;
 import com.sandpolis.core.instance.Metatypes.InstanceType;
 import com.sandpolis.core.instance.state.ConnectionOid;
+import com.sandpolis.core.instance.state.NetworkConnectionOid;
+import com.sandpolis.core.instance.state.st.STDocument;
 import com.sandpolis.core.instance.store.ConfigurableStore;
-import com.sandpolis.core.instance.store.StoreBase;
+import com.sandpolis.core.instance.store.STCollectionStore;
 import com.sandpolis.core.net.Message.MSG;
 import com.sandpolis.core.net.config.CfgNet;
+import com.sandpolis.core.net.connection.ConnectionStore;
 import com.sandpolis.core.net.connection.ConnectionStore.SockEstablishedEvent;
 import com.sandpolis.core.net.connection.ConnectionStore.SockLostEvent;
-import com.sandpolis.core.net.connection.ConnectionStore;
 import com.sandpolis.core.net.message.MessageFuture;
 import com.sandpolis.core.net.network.NetworkStore.NetworkStoreConfig;
 import com.sandpolis.core.net.util.CvidUtil;
@@ -50,13 +52,16 @@ import com.sandpolis.core.net.util.CvidUtil;
  * @see ConnectionStore
  * @since 5.0.0
  */
-public final class NetworkStore extends StoreBase implements ConfigurableStore<NetworkStoreConfig> {
+public final class NetworkStore extends STCollectionStore<NetworkConnection>
+		implements ConfigurableStore<NetworkStoreConfig> {
 
 	@ConfigStruct
 	public static final class NetworkStoreConfig {
 
 		public int cvid;
 		public int preferredServer;
+		public STDocument collection;
+
 	}
 
 	public static final record ServerLostEvent(int cvid) {
@@ -84,7 +89,7 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 	private int preferredServer;
 
 	public NetworkStore() {
-		super(log);
+		super(log, NetworkConnection::new);
 	}
 
 	/**
@@ -219,7 +224,11 @@ public final class NetworkStore extends StoreBase implements ConfigurableStore<N
 		}
 
 		// Add edge representing the new connection
-		network.addEdge(Core.cvid(), remote_cvid, new NetworkConnection(null));
+		network.addEdge(Core.cvid(), remote_cvid, create(net_connection -> {
+			net_connection.get(NetworkConnectionOid.CONNECTED)
+					.source(() -> event.connection().get(ConnectionOid.CONNECTED).get());
+			// TODO ...
+		}));
 
 		if (Core.INSTANCE != InstanceType.SERVER) {
 			// See if that was the first connection to a server

@@ -9,7 +9,6 @@
 //============================================================================//
 package com.sandpolis.core.net.state.st.entangled;
 
-import java.util.Collection;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -70,11 +69,6 @@ public class EntangledDocument extends EntangledObject implements STDocument {
 	}
 
 	@Override
-	public Collection<STAttribute> attributes() {
-		return ((STDocument) container).attributes();
-	}
-
-	@Override
 	public STDocument document(String id) {
 		return ((STDocument) container).document(id);
 	}
@@ -82,11 +76,6 @@ public class EntangledDocument extends EntangledObject implements STDocument {
 	@Override
 	public int documentCount() {
 		return ((STDocument) container).documentCount();
-	}
-
-	@Override
-	public Collection<STDocument> documents() {
-		return ((STDocument) container).documents();
 	}
 
 	@Override
@@ -112,5 +101,15 @@ public class EntangledDocument extends EntangledObject implements STDocument {
 	@Override
 	public void set(String id, STDocument document) {
 		((STDocument) container).set(id, document);
+	}
+
+	@Override
+	public void forEachAttribute(Consumer<STAttribute> consumer) {
+		((STDocument) container).forEachAttribute(consumer);
+	}
+
+	@Override
+	public void forEachDocument(Consumer<STDocument> consumer) {
+		((STDocument) container).forEachDocument(consumer);
 	}
 }
