@@ -28,12 +28,12 @@ import com.sandpolis.core.foundation.ConfigStruct;
 import com.sandpolis.core.instance.Core;
 import com.sandpolis.core.instance.Metatypes.InstanceType;
 import com.sandpolis.core.instance.state.ConnectionOid;
-import com.sandpolis.core.instance.state.NetworkConnectionOid;
 import com.sandpolis.core.instance.state.st.STDocument;
 import com.sandpolis.core.instance.store.ConfigurableStore;
 import com.sandpolis.core.instance.store.STCollectionStore;
 import com.sandpolis.core.net.Message.MSG;
 import com.sandpolis.core.net.config.CfgNet;
+import com.sandpolis.core.net.connection.Connection;
 import com.sandpolis.core.net.connection.ConnectionStore;
 import com.sandpolis.core.net.connection.ConnectionStore.SockEstablishedEvent;
 import com.sandpolis.core.net.connection.ConnectionStore.SockLostEvent;
@@ -52,8 +52,7 @@ import com.sandpolis.core.net.util.CvidUtil;
  * @see ConnectionStore
  * @since 5.0.0
  */
-public final class NetworkStore extends STCollectionStore<NetworkConnection>
-		implements ConfigurableStore<NetworkStoreConfig> {
+public final class NetworkStore extends STCollectionStore<Connection> implements ConfigurableStore<NetworkStoreConfig> {
 
 	@ConfigStruct
 	public static final class NetworkStoreConfig {
@@ -81,7 +80,7 @@ public final class NetworkStore extends STCollectionStore<NetworkConnection>
 	 * The undirected graph which describes the visible connections between nodes on
 	 * the network.
 	 */
-	private MutableNetwork<Integer, NetworkConnection> network;
+	private MutableNetwork<Integer, Connection> network;
 
 	/**
 	 * The CVID of the preferred server on the network.
@@ -89,7 +88,7 @@ public final class NetworkStore extends STCollectionStore<NetworkConnection>
 	private int preferredServer;
 
 	public NetworkStore() {
-		super(log, NetworkConnection::new);
+		super(log, Connection::new);
 	}
 
 	/**
@@ -132,7 +131,7 @@ public final class NetworkStore extends STCollectionStore<NetworkConnection>
 	 * @param cvid The CVID
 	 * @return A set of all links involving the CVID
 	 */
-	public synchronized Set<NetworkConnection> getDirectLinks(int cvid) {
+	public synchronized Set<Connection> getDirectLinks(int cvid) {
 		return network.incidentEdges(cvid);
 	}
 
@@ -162,7 +161,7 @@ public final class NetworkStore extends STCollectionStore<NetworkConnection>
 	 * @param cvid2 The second CVID
 	 * @return A set of all links between the two CVIDs
 	 */
-	public synchronized Set<NetworkConnection> getDirectLinks(int cvid1, int cvid2) {
+	public synchronized Set<Connection> getDirectLinks(int cvid1, int cvid2) {
 		return network.edgesConnecting(cvid1, cvid2);
 	}
 
@@ -171,7 +170,7 @@ public final class NetworkStore extends STCollectionStore<NetworkConnection>
 	 *
 	 * @return The underlying network graph of the store
 	 */
-	public Network<Integer, NetworkConnection> getNetwork() {
+	public Network<Integer, Connection> getNetwork() {
 		return network;
 	}
 
@@ -224,11 +223,7 @@ public final class NetworkStore extends STCollectionStore<NetworkConnection>
 		}
 
 		// Add edge representing the new connection
-		network.addEdge(Core.cvid(), remote_cvid, create(net_connection -> {
-			net_connection.get(NetworkConnectionOid.CONNECTED)
-					.source(() -> event.connection().get(ConnectionOid.CONNECTED).get());
-			// TODO ...
-		}));
+		network.addEdge(Core.cvid(), remote_cvid, event.connection());
 
 		if (Core.INSTANCE != InstanceType.SERVER) {
 			// See if that was the first connection to a server

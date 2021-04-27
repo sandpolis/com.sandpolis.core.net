@@ -60,7 +60,7 @@ public class Connection extends AbstractSTDomainObject {
 	 */
 	private Channel channel;
 
-	Connection(STDocument document) {
+	public Connection(STDocument document) {
 		super(document);
 	}
 
