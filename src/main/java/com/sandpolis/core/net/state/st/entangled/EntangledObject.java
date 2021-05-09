@@ -110,16 +110,6 @@ public abstract class EntangledObject extends AbstractSTObject {
 	}
 
 	@Override
-	public void merge(ProtoSTObjectUpdate snapshot) {
-		container.merge(snapshot);
-	}
-
-	@Override
-	public ProtoSTObjectUpdate snapshot(Oid... oids) {
-		return container.snapshot(oids);
-	}
-
-	@Override
 	public void addListener(Object listener) {
 		container.addListener(listener);
 	}
@@ -142,5 +132,10 @@ public abstract class EntangledObject extends AbstractSTObject {
 	@Subscribe
 	void handle(STDocument.DocumentRemovedEvent event) {
 		source.submit(ProtoSTObjectUpdate.newBuilder().addRemoved(event.oldDocument().oid().toString()).build());
+	}
+
+	@Override
+	public void replaceParent(STDocument parent) {
+		container.replaceParent(parent);
 	}
 }

@@ -76,7 +76,7 @@ public final class ConnectionStore extends STCollectionStore<Connection>
 
 	/**
 	 * Create and start a new {@link ConnectionLoop} with the given configuration.
-	 * 
+	 *
 	 * @param configurator The loop configuration
 	 * @return A new connection loop
 	 */

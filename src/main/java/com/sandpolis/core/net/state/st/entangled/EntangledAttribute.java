@@ -17,6 +17,8 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sandpolis.core.instance.State.ProtoSTObjectUpdate;
+import com.sandpolis.core.instance.state.oid.Oid;
 import com.sandpolis.core.instance.state.st.EphemeralAttribute.EphemeralAttributeValue;
 import com.sandpolis.core.instance.state.st.STAttribute;
 import com.sandpolis.core.net.state.STCmd.STSyncStruct;
@@ -83,5 +85,17 @@ public class EntangledAttribute extends EntangledObject implements STAttribute {
 	@Override
 	public long timestamp() {
 		return ((STAttribute) container).timestamp();
+	}
+
+	@Override
+	public void merge(ProtoSTObjectUpdate snapshot) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public ProtoSTObjectUpdate snapshot(Oid... oids) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }

@@ -59,6 +59,8 @@ public class ExeletStore extends StoreBase implements ConfigurableStore<ExeletSt
 					continue;
 				}
 
+				log.trace("Registering exelet handler: {} ({})", exeletMethod.name, exeletMethod.type);
+
 				var instances = Arrays.asList(metadata.instances());
 				if (instances.contains(CLIENT))
 					client.put(exeletMethod.type, exeletMethod);

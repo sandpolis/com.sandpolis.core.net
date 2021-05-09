@@ -112,4 +112,14 @@ public class EntangledDocument extends EntangledObject implements STDocument {
 	public void forEachDocument(Consumer<STDocument> consumer) {
 		((STDocument) container).forEachDocument(consumer);
 	}
+
+	@Override
+	public STDocument getDocument(String id) {
+		return ((STDocument) container).getDocument(id);
+	}
+
+	@Override
+	public STAttribute getAttribute(String id) {
+		return ((STDocument) container).getAttribute(id);
+	}
 }
