@@ -19,7 +19,7 @@ plugins {
 dependencies {
 	testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.1")
 	testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.6.1")
-	testImplementation("org.awaitility:awaitility:4.0.1")
+	testImplementation("org.awaitility:awaitility:4.1.0")
 
 	// https://github.com/netty/netty
 	api("io.netty:netty-common:4.1.60.Final")
