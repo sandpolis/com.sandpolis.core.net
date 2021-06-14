@@ -203,8 +203,16 @@ public final class ConnectionLoop implements Runnable {
 	@Override
 	public void run() {
 
+		log.debug("Starting connection loop (target count = {}, iteration limit = {}, cooldown = {})", targets.size(),
+				iterationLimit, cooldown);
+
 		try {
 			while (iteration < iterationLimit || iterationLimit == 0) {
+
+				if (iteration > 0) {
+					log.trace("Waiting {} ms before next connection attempt", cooldown);
+					Thread.sleep(cooldown);
+				}
 
 				for (var target : targets) {
 
@@ -222,15 +230,14 @@ public final class ConnectionLoop implements Runnable {
 
 					iteration++;
 					cooldown = exponential.get();
-					log.trace("Waiting {} ms before next connection attempt", cooldown);
-					Thread.sleep(cooldown);
 				}
 			}
 
 			// Maximum iteration count exceeded
-			future.setSuccess(null);
+			log.debug("Maximum connection iteration count exceeded");
+			future.setFailure(new Exception("Maximum connection iteration count exceeded"));
 		} catch (Exception e) {
-			log.debug("Terminating connection loop");
+			log.debug("Encountered exception in connection loop", e);
 			future.setFailure(e);
 		}
 	}
@@ -251,7 +258,6 @@ public final class ConnectionLoop implements Runnable {
 	 * @return A future which will receive the connection if successful
 	 */
 	public ConnectionLoop start(ExecutorService executor) {
-		log.debug("Starting connection loop");
 		executor.execute(this);
 		return this;
 	}

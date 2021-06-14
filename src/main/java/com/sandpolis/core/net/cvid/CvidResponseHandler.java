@@ -9,10 +9,12 @@
 //============================================================================//
 package com.sandpolis.core.net.cvid;
 
+import static com.sandpolis.core.net.network.NetworkStore.NetworkStore;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sandpolis.core.instance.Core;
+import com.sandpolis.core.instance.Entrypoint;
 import com.sandpolis.core.instance.Metatypes.InstanceFlavor;
 import com.sandpolis.core.instance.Metatypes.InstanceType;
 import com.sandpolis.core.instance.state.ConnectionOid;
@@ -55,14 +57,13 @@ public class CvidResponseHandler extends AbstractCvidHandler {
 		} else {
 			int cvid = CvidUtil.cvid(rq.getInstance(), rq.getInstanceFlavor());
 
-			ch.writeAndFlush(MsgUtil
-					.rs(msg, RS_Cvid.newBuilder().setServerCvid(Core.cvid()).setServerUuid(Core.UUID).setCvid(cvid))
-					.build());
+			ch.writeAndFlush(MsgUtil.rs(msg, RS_Cvid.newBuilder().setServerCvid(NetworkStore.cvid())
+					.setServerUuid(Entrypoint.data().uuid()).setCvid(cvid)).build());
 
 			sock.set(ConnectionOid.REMOTE_INSTANCE, rq.getInstance());
 			sock.set(ConnectionOid.REMOTE_CVID, cvid);
 			sock.set(ConnectionOid.REMOTE_UUID, rq.getUuid());
-			super.userEventTriggered(ctx, new CvidHandshakeCompletionEvent(Core.cvid(), cvid));
+			super.userEventTriggered(ctx, new CvidHandshakeCompletionEvent(NetworkStore.cvid(), cvid));
 		}
 	}
 }

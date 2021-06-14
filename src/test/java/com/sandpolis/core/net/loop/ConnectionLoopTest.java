@@ -46,16 +46,21 @@ class ConnectionLoopTest {
 	@Test
 	@DisplayName("Attempt a connection on a closed port")
 	void testConnectClosedPort() throws InterruptedException {
-		ConnectionLoop loop = new ConnectionLoop("127.0.0.1", 38903, 500, new Bootstrap()
-				.channel(NioSocketChannel.class).group(new NioEventLoopGroup()).handler(new LoggingHandler()));
+		ConnectionLoop loop = new ConnectionLoop(config -> {
+			config.timeout = 100;
+			config.iterationLimit = 1;
+			config.address("example.com", 38903);
+			config.bootstrap.channel(NioSocketChannel.class).group(new NioEventLoopGroup())
+					.handler(new LoggingHandler());
+		});
 
 		assertFalse(loop.future().isDone());
 		assertFalse(loop.future().isSuccess());
 
-		loop.start().await(1000, TimeUnit.MILLISECONDS);
+		loop.start().future().await(1000, TimeUnit.MILLISECONDS);
 
 		assertTrue(loop.future().isDone());
-		assertTrue(loop.future().isSuccess());
+		assertFalse(loop.future().isSuccess());
 		assertNull(loop.future().getNow());
 	}
 
@@ -67,13 +72,17 @@ class ConnectionLoopTest {
 		new ServerBootstrap().group(new NioEventLoopGroup()).channel(NioServerSocketChannel.class)
 				.childHandler(new LoggingHandler()).bind(InetAddress.getLoopbackAddress(), 23374).sync();
 
-		ConnectionLoop loop = new ConnectionLoop("127.0.0.1", 23374, 500, new Bootstrap()
-				.channel(NioSocketChannel.class).group(new NioEventLoopGroup()).handler(new LoggingHandler()));
+		ConnectionLoop loop = new ConnectionLoop(config -> {
+			config.iterationLimit = 1;
+			config.address("127.0.0.1", 23374);
+			config.bootstrap.channel(NioSocketChannel.class).group(new NioEventLoopGroup())
+					.handler(new LoggingHandler());
+		});
 
 		assertFalse(loop.future().isDone());
 		assertFalse(loop.future().isSuccess());
 
-		loop.start().await(1000, TimeUnit.MILLISECONDS);
+		loop.start().future().await(1000, TimeUnit.MILLISECONDS);
 
 		assertTrue(loop.future().isDone());
 		assertTrue(loop.future().isSuccess());

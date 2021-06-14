@@ -25,7 +25,7 @@ import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
 import com.google.common.graph.NetworkBuilder;
 import com.sandpolis.core.foundation.ConfigStruct;
-import com.sandpolis.core.instance.Core;
+import com.sandpolis.core.instance.Entrypoint;
 import com.sandpolis.core.instance.Metatypes.InstanceType;
 import com.sandpolis.core.instance.state.ConnectionOid;
 import com.sandpolis.core.instance.state.st.STDocument;
@@ -86,6 +86,29 @@ public final class NetworkStore extends STCollectionStore<Connection> implements
 	 * The CVID of the preferred server on the network.
 	 */
 	private int preferredServer;
+
+	/**
+	 * The CVID of this instance.
+	 */
+	private int cvid;
+
+	/**
+	 * @return This instance's CVID
+	 */
+	public int cvid() {
+		return cvid;
+	}
+
+	public void setCvid(int newCvid) {
+		if (cvid != 0) {
+			network.removeNode(cvid);
+		}
+
+		cvid = newCvid;
+
+		network.addNode(newCvid);
+		post(new CvidChangedEvent(newCvid));
+	}
 
 	public NetworkStore() {
 		super(log, Connection::new);
@@ -199,16 +222,13 @@ public final class NetworkStore extends STCollectionStore<Connection> implements
 		preferredServer = config.preferredServer;
 		network = NetworkBuilder.undirected().allowsSelfLoops(false).allowsParallelEdges(true).build();
 
-		if (config.cvid != 0)
+		if (config.cvid != 0) {
+			cvid = config.cvid;
 			network.addNode(config.cvid);
+		}
 
 		ConnectionStore.register(this);
 		post(new CvidChangedEvent(config.cvid));
-	}
-
-	@Subscribe
-	private synchronized void onCvidChanged(CvidChangedEvent event) {
-		network.addNode(event.cvid());
 	}
 
 	@Subscribe
@@ -223,9 +243,9 @@ public final class NetworkStore extends STCollectionStore<Connection> implements
 		}
 
 		// Add edge representing the new connection
-		network.addEdge(Core.cvid(), remote_cvid, event.connection());
+		network.addEdge(cvid(), remote_cvid, event.connection());
 
-		if (Core.INSTANCE != InstanceType.SERVER) {
+		if (Entrypoint.data().instance() != InstanceType.SERVER) {
 			// See if that was the first connection to a server
 			if (event.connection().get(ConnectionOid.REMOTE_INSTANCE).asInstanceType() == InstanceType.SERVER) {
 				// TODO
@@ -236,16 +256,16 @@ public final class NetworkStore extends STCollectionStore<Connection> implements
 
 	@Subscribe
 	private synchronized void onSockLost(SockLostEvent event) {
-		if (network.nodes().contains(Core.cvid())
+		if (network.nodes().contains(cvid())
 				&& network.nodes().contains(event.connection().get(ConnectionOid.REMOTE_CVID).asInt()))
-			network.edgeConnecting(Core.cvid(), event.connection().get(ConnectionOid.REMOTE_CVID).asInt())
+			network.edgeConnecting(cvid(), event.connection().get(ConnectionOid.REMOTE_CVID).asInt())
 					.ifPresent(network::removeEdge);
 
 		// Remove nodes that are now disconnected
-		network.nodes().stream().filter(cvid -> Core.cvid() != cvid).filter(cvid -> network.degree(cvid) == 0)
+		network.nodes().stream().filter(cvid -> cvid() != cvid).filter(cvid -> network.degree(cvid) == 0)
 				.collect(Collectors.toUnmodifiableList()).forEach(network::removeNode);
 
-		if (Core.INSTANCE != InstanceType.SERVER) {
+		if (Entrypoint.data().instance() != InstanceType.SERVER) {
 			// Check whether a server is still reachable after losing the connection
 			for (var node : network.nodes()) {
 				if (CvidUtil.extractInstance(node) == InstanceType.SERVER) {
@@ -300,7 +320,7 @@ public final class NetworkStore extends STCollectionStore<Connection> implements
 	 * @return The next hop
 	 */
 	public synchronized int route(MSG message) {
-		if (network.adjacentNodes(Core.cvid()).contains(message.getTo())) {
+		if (network.adjacentNodes(cvid()).contains(message.getTo())) {
 			ConnectionStore.getByCvid(message.getTo()).get().send(message);
 			return message.getTo();
 		} else {
@@ -334,7 +354,7 @@ public final class NetworkStore extends STCollectionStore<Connection> implements
 		// TODO use timeout class
 
 		// Search adjacent nodes first
-		if (network.adjacentNodes(Core.cvid()).contains(message.getTo())) {
+		if (network.adjacentNodes(cvid()).contains(message.getTo())) {
 			next = message.getTo();
 		}
 

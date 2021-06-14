@@ -14,7 +14,7 @@ import static com.sandpolis.core.net.network.NetworkStore.NetworkStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sandpolis.core.instance.Core;
+import com.sandpolis.core.instance.Entrypoint;
 import com.sandpolis.core.instance.Metatypes.InstanceFlavor;
 import com.sandpolis.core.instance.Metatypes.InstanceType;
 import com.sandpolis.core.instance.state.ConnectionOid;
@@ -22,7 +22,6 @@ import com.sandpolis.core.net.Message.MSG;
 import com.sandpolis.core.net.channel.ChannelConstant;
 import com.sandpolis.core.net.msg.MsgCvid.RQ_Cvid;
 import com.sandpolis.core.net.msg.MsgCvid.RS_Cvid;
-import com.sandpolis.core.net.network.NetworkStore.CvidChangedEvent;
 import com.sandpolis.core.net.util.MsgUtil;
 
 import io.netty.channel.Channel;
@@ -51,8 +50,7 @@ public class CvidRequestHandler extends AbstractCvidHandler {
 		RS_Cvid rs = MsgUtil.unpack(msg, RS_Cvid.class);
 		if (rs != null && !rs.getServerUuid().isEmpty()) {
 
-			Core.setCvid(rs.getCvid());
-			NetworkStore.post(new CvidChangedEvent(Core.cvid()));
+			NetworkStore.setCvid(rs.getCvid());
 			sock.set(ConnectionOid.REMOTE_CVID, rs.getServerCvid());
 			sock.set(ConnectionOid.REMOTE_UUID, rs.getServerUuid());
 
@@ -66,7 +64,7 @@ public class CvidRequestHandler extends AbstractCvidHandler {
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {
-		handshake(ctx.channel(), Core.INSTANCE, Core.FLAVOR, Core.UUID);
+		handshake(ctx.channel(), Entrypoint.data().instance(), Entrypoint.data().flavor(), Entrypoint.data().uuid());
 		super.channelActive(ctx);
 	}
 

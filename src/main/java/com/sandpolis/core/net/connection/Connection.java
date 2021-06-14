@@ -10,6 +10,7 @@
 package com.sandpolis.core.net.connection;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.sandpolis.core.net.network.NetworkStore.NetworkStore;
 
 import java.net.InetSocketAddress;
 import java.security.cert.X509Certificate;
@@ -26,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.MessageLiteOrBuilder;
-import com.sandpolis.core.instance.Core;
 import com.sandpolis.core.instance.state.ConnectionOid;
 import com.sandpolis.core.instance.state.st.STDocument;
 import com.sandpolis.core.instance.state.vst.AbstractSTDomainObject;
@@ -154,7 +154,7 @@ public class Connection extends AbstractSTDomainObject {
 			return CvidUtil.extractInstanceFlavor(get(ConnectionOid.REMOTE_CVID).asInt());
 		});
 
-		get(ConnectionOid.LOCAL_CVID).source(Core::cvid);
+		get(ConnectionOid.LOCAL_CVID).source(NetworkStore::cvid);
 	}
 
 	/**
