@@ -6,33 +6,3 @@ updates:
     interval: daily
     timezone: America/Chicago
   open-pull-requests-limit: 99
-  ignore:
-  - dependency-name: io.netty:netty-transport
-    versions:
-    - 4.1.61.Final
-    - 4.1.62.Final
-  - dependency-name: io.netty:netty-common
-    versions:
-    - 4.1.60.Final
-    - 4.1.61.Final
-    - 4.1.62.Final
-  - dependency-name: io.netty:netty-handler
-    versions:
-    - 4.1.60.Final
-    - 4.1.61.Final
-    - 4.1.62.Final
-  - dependency-name: io.netty:netty-codec
-    versions:
-    - 4.1.60.Final
-    - 4.1.61.Final
-    - 4.1.62.Final
-  - dependency-name: io.netty:netty-resolver-dns
-    versions:
-    - 4.1.60.Final
-    - 4.1.61.Final
-    - 4.1.62.Final
-  - dependency-name: io.netty:netty-codec-dns
-    versions:
-    - 4.1.60.Final
-    - 4.1.61.Final
-    - 4.1.62.Final
