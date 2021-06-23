@@ -18,7 +18,7 @@ import com.sandpolis.core.foundation.util.RandUtil;
 /**
  * A CVID is a positive 32-bit ID that uniquely identifies an instance on a
  * Sandpolis network. The name historically stands for Client/Viewer ID, but
- * server instances have one as well. CVIDs are suitible for identifying
+ * server instances have one as well. CVIDs are suitable for identifying
  * instances during a session only. For a long-term ID, use UUID.
  *
  * <pre>
@@ -72,21 +72,6 @@ public final class CvidUtil {
 
 	/**
 	 * Generate a new random CVID.
-	 *
-	 * @param instance The new CVID's instance type
-	 * @return A new CVID
-	 */
-	public static int cvid(InstanceType instance) {
-		return cvid(instance, InstanceFlavor.NONE);
-	}
-
-	/**
-	 * Generate a new random CVID.<br>
-	 * <br>
-	 * Note: there's a small chance that this method will produce an invalid ID of 0
-	 * for Charcoal instances. Since Charcoal is for debugging only, this is not
-	 * remedied by introducing a validity-checking loop. Charcoal instances should
-	 * manually check the output of this method and regenerate if equal to 0.
 	 *
 	 * @param instance The new CVID's instance type
 	 * @param flavor   The new CVID's instance flavor

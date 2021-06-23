@@ -66,13 +66,13 @@ class CvidRequestHandlerTest {
 	@DisplayName("Initiate a CVID handshake")
 	void testInitiate() throws InvalidProtocolBufferException {
 		final var testUuid = randomUUID().toString();
-		HANDLER.handshake(client, InstanceType.CLIENT, InstanceFlavor.MEGA, testUuid);
+		HANDLER.handshake(client, InstanceType.CLIENT, InstanceFlavor.GENERIC, testUuid);
 
 		RQ_Cvid rq = MsgUtil.unpack(client.readOutbound(), RQ_Cvid.class);
 
 		assertTrue(rq != null);
 		assertEquals(InstanceType.CLIENT, rq.getInstance());
-		assertEquals(InstanceFlavor.MEGA, rq.getInstanceFlavor());
+		assertEquals(InstanceFlavor.GENERIC, rq.getInstanceFlavor());
 		assertEquals(testUuid, rq.getUuid());
 	}
 
@@ -91,8 +91,9 @@ class CvidRequestHandlerTest {
 	void testReceiveCorrect() {
 		final var testUuid = randomUUID().toString();
 		final var testCvid = 123456;
-		client.writeInbound(MsgUtil.pack(MSG.newBuilder(), RS_Cvid.newBuilder()
-				.setCvid(CvidUtil.cvid(InstanceType.CLIENT)).setServerCvid(testCvid).setServerUuid(testUuid).build()));
+		client.writeInbound(MsgUtil.pack(MSG.newBuilder(),
+				RS_Cvid.newBuilder().setCvid(CvidUtil.cvid(InstanceType.CLIENT, InstanceFlavor.GENERIC))
+						.setServerCvid(testCvid).setServerUuid(testUuid).build()));
 
 		await().atMost(1000, TimeUnit.MILLISECONDS).until(() -> event != null);
 		assertTrue(event.success);
